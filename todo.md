@@ -136,3 +136,106 @@
 - [ ] Cálculo de tickets alimentação (R$ 30/dia)
 - [ ] Relatórios de rentabilidade
 - [ ] Integração com folha de pagamento
+
+
+## NOVOS REQUISITOS IDENTIFICADOS (CRÍTICOS)
+
+### Parametrização de Contratos por Cliente
+- [ ] Tabela de contratos com configurações específicas por cliente
+- [ ] Valor da diária por função (pode variar por cliente)
+- [ ] Benefícios incluídos: marmita (sim/não), uniforme (sim/não), transporte (sim/não)
+- [ ] Horários de trabalho (turno manhã/tarde/noite)
+- [ ] Observações específicas do contrato
+- [ ] Histórico de alterações contratuais
+
+### Interface para Supervisor CLT (Confirmação de Presença)
+- [ ] Login específico para supervisores CLT
+- [ ] Tela de confirmação de presença dos diaristas
+- [ ] Checklist de itens fornecidos (marmita, uniforme, EPI)
+- [ ] Anotações sobre o dia de trabalho
+- [ ] Assinatura digital do supervisor
+- [ ] Assinatura digital do diarista (confirmação de recebimento)
+- [ ] Registro de horário de entrada/saída (sem controle de jornada)
+- [ ] Upload de fotos (opcional)
+
+### Controle de Benefícios e Itens Fornecidos
+- [ ] Registro de entrega de marmita (por dia)
+- [ ] Registro de entrega de uniforme (com devolução)
+- [ ] Controle de vale-transporte (se aplicável)
+- [ ] Controle de EPIs fornecidos
+- [ ] Histórico completo por trabalhador
+- [ ] Relatório de custos de benefícios
+
+### Relatórios Financeiros
+- [ ] Relatório de pagamento por trabalhador (dias × diária + benefícios)
+- [ ] Relatório de pagamento por cliente (faturamento)
+- [ ] Relatório de custos operacionais (benefícios, uniformes, EPIs)
+- [ ] Relatório de rentabilidade por cliente
+- [ ] Relatório de tickets alimentação (Convenção Coletiva)
+- [ ] Exportação para Excel/PDF
+- [ ] Filtros por período, cliente, trabalhador
+
+### Gestão de Dados de Empresas
+- [ ] Cadastro completo de empresas clientes
+- [ ] Múltiplos contratos por empresa
+- [ ] Histórico de serviços prestados
+- [ ] Faturamento total por empresa
+- [ ] Contatos múltiplos (comercial, operacional, financeiro)
+- [ ] Documentos anexados (contratos, notas fiscais)
+
+### Fluxo Operacional Completo
+- [ ] 1. Admin cria alocação (trabalhador + cliente + local + data)
+- [ ] 2. Sistema envia notificação ao supervisor CLT
+- [ ] 3. Supervisor confirma presença do diarista no app
+- [ ] 4. Supervisor registra itens fornecidos (marmita, uniforme, etc.)
+- [ ] 5. Diarista assina digitalmente confirmando recebimento
+- [ ] 6. Sistema calcula automaticamente valor a pagar
+- [ ] 7. Admin gera relatório de pagamento
+- [ ] 8. Sistema registra pagamento via PIX
+- [ ] 9. Emissão de recibo digital
+
+
+## SISTEMA DE TURNOS (Implementação Imediata)
+
+### Cadastro de Turnos
+- [ ] Tabela de turnos por cliente
+- [ ] Turnos padrão: Manhã, Tarde, Noite, Comercial
+- [ ] Horários configuráveis por cliente (ex: Manhã 6h-14h ou 7h-15h)
+- [ ] Múltiplos turnos por cliente
+
+### Interface Mobile para Supervisor
+- [ ] Login específico para supervisores
+- [ ] Lista de alocações do dia agrupadas por turno
+- [ ] Tela de confirmação de entrada com checklist
+- [ ] Tela de confirmação de saída
+- [ ] Assinatura digital (canvas touch)
+- [ ] Campo para CPF e PIX (se não cadastrado)
+- [ ] Registro de turno (NÃO horário exato)
+- [ ] Geolocalização automática
+- [ ] Modo offline (sincroniza depois)
+
+### Checklist de Entrada/Saída
+- [ ] Pegou marmita? (sim/não) - se sim, desconta automaticamente
+- [ ] Uniforme OK? (sim/não)
+- [ ] EPI completo? (sim/não)
+- [ ] Observações (campo livre)
+- [ ] Foto opcional
+
+### Cálculo Automático de Pagamentos
+- [ ] Diária base (conforme contrato)
+- [ ] Desconto de marmita (se pegou)
+- [ ] Valor líquido a pagar
+- [ ] Cálculo de ticket alimentação (Convenção Coletiva)
+- [ ] Total por trabalhador no período
+
+### Relatórios Quinzenais
+- [ ] Relatório por cliente: quantidade de pessoas-dia
+- [ ] Agrupamento por turno
+- [ ] Exportação para Excel
+- [ ] Dados para emissão de NF
+
+### Gestão de Supervisores
+- [ ] Cadastro de supervisores CLT
+- [ ] Atribuição de operações por supervisor
+- [ ] Histórico de confirmações por supervisor
+- [ ] Dashboard de supervisores ativos

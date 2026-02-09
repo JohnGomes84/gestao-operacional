@@ -4,6 +4,8 @@ import {
   InsertUser, users,
   workers, InsertWorker, Worker,
   clients, InsertClient,
+  contracts, InsertContract,
+  shifts, InsertShift,
   workLocations, InsertWorkLocation,
   allocations, InsertAllocation,
   workOffers, InsertWorkOffer,
@@ -497,4 +499,110 @@ export async function getAllocationEvaluations(allocationId: number) {
     .from(evaluations)
     .where(eq(evaluations.allocationId, allocationId))
     .orderBy(desc(evaluations.createdAt));
+}
+
+
+// ============================================================================
+// CONTRACTS (Contratos)
+// ============================================================================
+
+export async function createContract(contract: InsertContract) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(contracts).values(contract);
+  return result;
+}
+
+export async function getAllContracts() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db
+    .select()
+    .from(contracts)
+    .orderBy(desc(contracts.createdAt));
+}
+
+export async function getContractsByClient(clientId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db
+    .select()
+    .from(contracts)
+    .where(eq(contracts.clientId, clientId))
+    .orderBy(desc(contracts.createdAt));
+}
+
+export async function getActiveContractByClient(clientId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db
+    .select()
+    .from(contracts)
+    .where(
+      and(
+        eq(contracts.clientId, clientId),
+        eq(contracts.status, "active")
+      )
+    )
+    .orderBy(desc(contracts.createdAt))
+    .limit(1);
+  
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function updateContract(id: number, data: Partial<InsertContract>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return await db
+    .update(contracts)
+    .set(data)
+    .where(eq(contracts.id, id));
+}
+
+// ============================================================================
+// SHIFTS (Turnos)
+// ============================================================================
+
+export async function createShift(shift: InsertShift) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(shifts).values(shift);
+  return result;
+}
+
+export async function getAllShifts() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db
+    .select()
+    .from(shifts)
+    .orderBy(desc(shifts.createdAt));
+}
+
+export async function getShiftsByClient(clientId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db
+    .select()
+    .from(shifts)
+    .where(eq(shifts.clientId, clientId))
+    .orderBy(shifts.shiftName);
+}
+
+export async function updateShift(id: number, data: Partial<InsertShift>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return await db
+    .update(shifts)
+    .set(data)
+    .where(eq(shifts.id, id));
 }

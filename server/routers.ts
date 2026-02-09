@@ -253,6 +253,157 @@ export const appRouter = router({
         return sorted.slice(0, quantity * 2); // 2x para dar opções
       }),
   }),
+
+  // ============================================================================
+  // CONTRACTS (Contratos)
+  // ============================================================================
+  contracts: router({
+    list: protectedProcedure.query(async () => {
+      return await db.getAllContracts();
+    }),
+    
+    getByClient: protectedProcedure
+      .input(z.object({ clientId: z.number() }))
+      .query(async ({ input }) => {
+        return await db.getContractsByClient(input.clientId);
+      }),
+    
+    getActiveByClient: protectedProcedure
+      .input(z.object({ clientId: z.number() }))
+      .query(async ({ input }) => {
+        return await db.getActiveContractByClient(input.clientId);
+      }),
+    
+    create: protectedProcedure
+      .input(z.object({
+        clientId: z.number(),
+        contractName: z.string(),
+        contractNumber: z.string().optional(),
+        startDate: z.string(),
+        endDate: z.string().optional(),
+        dailyRates: z.string(), // JSON string
+        providesUniform: z.boolean().default(true),
+        providesEpi: z.boolean().default(true),
+        providesMeal: z.boolean().default(true),
+        mealCost: z.number().default(25),
+        mealTicketValue: z.number().default(30),
+        billingCycle: z.enum(["weekly", "biweekly", "monthly"]).default("biweekly"),
+        chargePerPerson: z.number(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const contractData = {
+          ...input,
+          startDate: new Date(input.startDate),
+          endDate: input.endDate ? new Date(input.endDate) : undefined,
+          mealCost: input.mealCost.toString(),
+          mealTicketValue: input.mealTicketValue.toString(),
+          chargePerPerson: input.chargePerPerson.toString(),
+        };
+        return await db.createContract(contractData);
+      }),
+  }),
+
+  // ============================================================================
+  // SHIFTS (Turnos)
+  // ============================================================================
+  shifts: router({
+    list: protectedProcedure.query(async () => {
+      return await db.getAllShifts();
+    }),
+    
+    getByClient: protectedProcedure
+      .input(z.object({ clientId: z.number() }))
+      .query(async ({ input }) => {
+        return await db.getShiftsByClient(input.clientId);
+      }),
+    
+    create: protectedProcedure
+      .input(z.object({
+        clientId: z.number(),
+        shiftName: z.string(),
+        startTime: z.string(),
+        endTime: z.string(),
+        description: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        return await db.createShift(input);
+      }),
+  }),
+
+  // ============================================================================
+  // SUPERVISOR (Interface para supervisores)
+  // ============================================================================
+  supervisor: router({
+    // Lista alocações do dia para o supervisor
+    todayAllocations: protectedProcedure
+      .input(z.object({
+        date: z.string().optional(), // YYYY-MM-DD
+      }))
+      .query(async ({ input }) => {
+        const date = input.date || new Date().toISOString().split('T')[0];
+        return await db.getAllocations({
+          startDate: date,
+          endDate: date,
+          status: 'scheduled',
+        });
+      }),
+    
+    // Confirmar entrada do trabalhador
+    checkIn: protectedProcedure
+      .input(z.object({
+        allocationId: z.number(),
+        tookMeal: z.boolean(),
+        uniformProvided: z.boolean(),
+        epiProvided: z.boolean(),
+        workerSignature: z.string(),
+        location: z.string().optional(), // lat,long
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { allocationId, workerSignature, location, ...benefits } = input;
+        
+        return await db.updateAllocation(allocationId, {
+          status: 'in_progress',
+          checkInTime: new Date(),
+          checkInLocation: location,
+          workerSignatureIn: workerSignature,
+          supervisorId: ctx.user?.id,
+          ...benefits,
+        });
+      }),
+    
+    // Confirmar saída do trabalhador
+    checkOut: protectedProcedure
+      .input(z.object({
+        allocationId: z.number(),
+        workerSignature: z.string(),
+        location: z.string().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { allocationId, workerSignature, location, notes } = input;
+        
+        // Buscar alocação para calcular pagamento
+        const allocations = await db.getAllocations({});
+        const allocation = allocations.find(a => a.id === allocationId);
+        if (!allocation) {
+          throw new Error('Alocação não encontrada');
+        }
+        
+        const dailyRate = parseFloat(allocation.dailyRate || '0');
+        const mealCost = allocation.tookMeal ? parseFloat(allocation.mealCost || '0') : 0;
+        const netPay = dailyRate - mealCost;
+        
+        return await db.updateAllocation(allocationId, {
+          status: 'completed',
+          checkOutTime: new Date(),
+          checkOutLocation: location,
+          workerSignatureOut: workerSignature,
+          netPay: netPay.toString(),
+          notes: notes,
+        });
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

@@ -22,6 +22,20 @@
       "when": 1770678580557,
       "tag": "0002_material_lady_mastermind",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1770679742234,
+      "tag": "0003_daily_tombstone",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1770679779584,
+      "tag": "0004_curved_reavers",
+      "breakpoints": true
     }
   ]
 }

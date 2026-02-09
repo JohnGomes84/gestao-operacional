@@ -109,6 +109,80 @@ export const clients = mysqlTable("clients", {
 export type Client = typeof clients.$inferSelect;
 export type InsertClient = typeof clients.$inferInsert;
 
+// ============================================================================
+// CONTRATOS (Parametrização por cliente)
+// ============================================================================
+
+export const contracts = mysqlTable("contracts", {
+  id: int("id").autoincrement().primaryKey(),
+  clientId: int("clientId").references(() => clients.id).notNull(),
+  
+  // Identificação
+  contractName: varchar("contractName", { length: 255 }).notNull(),
+  contractNumber: varchar("contractNumber", { length: 100 }),
+  
+  // Período de vigência
+  startDate: date("startDate").notNull(),
+  endDate: date("endDate"),
+  
+  // Valores por função (JSON para flexibilidade)
+  dailyRates: text("dailyRates").notNull(), // JSON: {"ajudante": 150, "motorista1": 200, ...}
+  
+  // Benefícios
+  providesUniform: boolean("providesUniform").default(true).notNull(),
+  providesEpi: boolean("providesEpi").default(true).notNull(),
+  providesMeal: boolean("providesMeal").default(true).notNull(),
+  mealCost: decimal("mealCost", { precision: 10, scale: 2 }).default("25.00"), // Valor descontado do trabalhador
+  mealTicketValue: decimal("mealTicketValue", { precision: 10, scale: 2 }).default("30.00"), // Convenção
+  
+  // Faturamento
+  billingCycle: mysqlEnum("billingCycle", ["weekly", "biweekly", "monthly"]).default("biweekly").notNull(),
+  chargePerPerson: decimal("chargePerPerson", { precision: 10, scale: 2 }).notNull(), // Valor cobrado do cliente por pessoa/dia
+  
+  // Status
+  status: mysqlEnum("status", ["active", "inactive", "expired"]).default("active").notNull(),
+  
+  // Observações
+  notes: text("notes"),
+  
+  // Metadados
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Contract = typeof contracts.$inferSelect;
+export type InsertContract = typeof contracts.$inferInsert;
+
+// ============================================================================
+// TURNOS (Por cliente/local)
+// ============================================================================
+
+export const shifts = mysqlTable("shifts", {
+  id: int("id").autoincrement().primaryKey(),
+  clientId: int("clientId").references(() => clients.id).notNull(),
+  
+  // Identificação
+  shiftName: varchar("shiftName", { length: 100 }).notNull(), // Manhã, Tarde, Noite, Comercial
+  
+  // Horários (apenas para referência, NÃO para controle de jornada)
+  startTime: varchar("startTime", { length: 5 }).notNull(), // "06:00"
+  endTime: varchar("endTime", { length: 5 }).notNull(), // "14:00"
+  
+  // Descrição
+  description: text("description"),
+  
+  // Status
+  status: mysqlEnum("status", ["active", "inactive"]).default("active").notNull(),
+  
+  // Metadados
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Shift = typeof shifts.$inferSelect;
+export type InsertShift = typeof shifts.$inferInsert;
+
+
+
 export const workLocations = mysqlTable("workLocations", {
   id: int("id").autoincrement().primaryKey(),
   clientId: int("clientId").references(() => clients.id).notNull(),
@@ -146,6 +220,8 @@ export const allocations = mysqlTable("allocations", {
   workerId: int("workerId").references(() => workers.id).notNull(),
   clientId: int("clientId").references(() => clients.id).notNull(),
   locationId: int("locationId").references(() => workLocations.id).notNull(),
+  contractId: int("contractId").references(() => contracts.id), // Contrato aplicado
+  shiftId: int("shiftId").references(() => shifts.id), // Turno
   
   // Data do trabalho
   workDate: date("workDate").notNull(),
@@ -154,20 +230,35 @@ export const allocations = mysqlTable("allocations", {
   // Status
   status: mysqlEnum("status", ["scheduled", "confirmed", "in_progress", "completed", "cancelled"]).default("scheduled").notNull(),
   
-  // Check-in/Check-out
+  // Check-in/Check-out (TURNO, não horário exato)
   checkInTime: timestamp("checkInTime"),
   checkOutTime: timestamp("checkOutTime"),
   checkInLocation: varchar("checkInLocation", { length: 100 }), // lat,long
   checkOutLocation: varchar("checkOutLocation", { length: 100 }), // lat,long
   
+  // Assinaturas digitais
+  workerSignatureIn: text("workerSignatureIn"), // Assinatura de entrada
+  workerSignatureOut: text("workerSignatureOut"), // Assinatura de saída
+  supervisorId: int("supervisorId").references(() => users.id), // Supervisor que confirmou
+  
+  // Benefícios fornecidos
+  tookMeal: boolean("tookMeal").default(false), // Pegou marmita?
+  uniformProvided: boolean("uniformProvided").default(false), // Uniforme fornecido?
+  epiProvided: boolean("epiProvided").default(false), // EPI fornecido?
+  
   // Valores
   dailyRate: decimal("dailyRate", { precision: 10, scale: 2 }),
+  mealCost: decimal("mealCost", { precision: 10, scale: 2 }).default("25.00"), // Custo da marmita (descontado)
   mealTicket: decimal("mealTicket", { precision: 10, scale: 2 }).default("30.00"), // Convenção Coletiva
+  netPay: decimal("netPay", { precision: 10, scale: 2 }), // Valor líquido a pagar (diária - marmita)
   
   // Controle de risco
   consecutiveDays: int("consecutiveDays").default(1), // Dias consecutivos no mesmo local
   daysThisMonth: int("daysThisMonth").default(1), // Dias neste mês no mesmo cliente
   riskFlag: boolean("riskFlag").default(false), // true se ultrapassar limites
+  
+  // Observações
+  notes: text("notes"),
   
   // Metadados
   createdAt: timestamp("createdAt").defaultNow().notNull(),

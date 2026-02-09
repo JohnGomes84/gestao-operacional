@@ -225,6 +225,28 @@ export default function Dashboard() {
                 </CardHeader>
               </Link>
             </Card>
+
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+              <Link href="/contratos">
+                <CardHeader>
+                  <CardTitle className="text-base">📝 Gerenciar Contratos</CardTitle>
+                  <CardDescription>
+                    Parametrizar valores e benefícios por cliente
+                  </CardDescription>
+                </CardHeader>
+              </Link>
+            </Card>
+
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer bg-blue-50 border-blue-200">
+              <Link href="/supervisor">
+                <CardHeader>
+                  <CardTitle className="text-base">📱 Supervisor (Mobile)</CardTitle>
+                  <CardDescription>
+                    Confirmar presença e registrar entrada/saída
+                  </CardDescription>
+                </CardHeader>
+              </Link>
+            </Card>
           </div>
         </section>
       </main>

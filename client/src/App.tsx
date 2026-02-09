@@ -9,6 +9,8 @@ import Dashboard from "./pages/Dashboard";
 import Workers from "./pages/Workers";
 import Clients from "./pages/Clients";
 import Allocations from "./pages/Allocations";
+import Contracts from "./pages/Contracts";
+import Supervisor from "./pages/Supervisor";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -18,6 +20,8 @@ function Router() {
       <Route path={"/trabalhadores"} component={Workers} />
       <Route path={"/clientes"} component={Clients} />
       <Route path={"/alocacoes"} component={Allocations} />
+      <Route path={"/contratos"} component={Contracts} />
+      <Route path={"/supervisor"} component={Supervisor} />
       <Route path={"/home"} component={Home} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
