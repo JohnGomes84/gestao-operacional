@@ -1,6 +1,21 @@
-import { eq } from "drizzle-orm";
+import { eq, and, gte, lte, desc, sql, count } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { 
+  InsertUser, users,
+  workers, InsertWorker, Worker,
+  clients, InsertClient,
+  workLocations, InsertWorkLocation,
+  allocations, InsertAllocation,
+  workOffers, InsertWorkOffer,
+  workerTerms, InsertWorkerTerm,
+  shiftChecklists, InsertShiftChecklist,
+  epiRecords, InsertEpiRecord,
+  incidents, InsertIncident,
+  payments, InsertPayment,
+  evaluations, InsertEvaluation,
+  procedures, InsertProcedure,
+  procedureReadLogs, InsertProcedureReadLog
+} from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -17,6 +32,10 @@ export async function getDb() {
   }
   return _db;
 }
+
+// ============================================================================
+// USERS
+// ============================================================================
 
 export async function upsertUser(user: InsertUser): Promise<void> {
   if (!user.openId) {
@@ -89,4 +108,393 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+// ============================================================================
+// WORKERS (Trabalhadores)
+// ============================================================================
+
+export async function createWorker(worker: InsertWorker) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(workers).values(worker);
+  return result;
+}
+
+export async function getWorkerById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db.select().from(workers).where(eq(workers.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getAllWorkers() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db.select().from(workers).orderBy(desc(workers.createdAt));
+}
+
+export async function getWorkersByCPF(cpf: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db.select().from(workers).where(eq(workers.cpf, cpf)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function updateWorker(id: number, data: Partial<InsertWorker>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return await db.update(workers).set(data).where(eq(workers.id, id));
+}
+
+// ============================================================================
+// RISK CALCULATION (CRÍTICO)
+// ============================================================================
+
+/**
+ * Calcula o score de risco trabalhista de um trabalhador
+ * Fórmula: (Dias Consecutivos × 10) + (Dias/Mês × 5) + (Meses no Mesmo Cliente × 20)
+ * 
+ * 0-50: Baixo (🟢)
+ * 51-100: Médio (🟡)
+ * 101-150: Alto (🔴)
+ * 151+: Crítico (🔴🔴)
+ */
+export async function calculateWorkerRisk(workerId: number, clientId: number, locationId: number) {
+  const db = await getDb();
+  if (!db) return { score: 0, level: 'low' as const };
+  
+  const today = new Date();
+  const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const threeMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 3, 1);
+  
+  // Calcular dias consecutivos no mesmo local
+  const recentAllocations = await db
+    .select()
+    .from(allocations)
+    .where(
+      and(
+        eq(allocations.workerId, workerId),
+        eq(allocations.locationId, locationId),
+        sql`${allocations.workDate} >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)`
+      )
+    )
+    .orderBy(desc(allocations.workDate));
+  
+  let consecutiveDays = 0;
+  let lastDate: Date | null = null;
+  
+  for (const alloc of recentAllocations) {
+    const allocDate = new Date(alloc.workDate);
+    if (!lastDate) {
+      consecutiveDays = 1;
+      lastDate = allocDate;
+    } else {
+      const diffDays = Math.floor((lastDate.getTime() - allocDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays === 1) {
+        consecutiveDays++;
+        lastDate = allocDate;
+      } else {
+        break;
+      }
+    }
+  }
+  
+  // Calcular dias no mês no mesmo cliente
+  const daysThisMonth = await db
+    .select({ count: count() })
+    .from(allocations)
+    .where(
+      and(
+        eq(allocations.workerId, workerId),
+        eq(allocations.clientId, clientId),
+        sql`${allocations.workDate} >= ${firstDayOfMonth.toISOString().split('T')[0]}`
+      )
+    );
+  
+  const daysInMonth = daysThisMonth[0]?.count || 0;
+  
+  // Calcular meses trabalhando no mesmo cliente
+  const monthsWithClient = await db
+    .select({ 
+      month: sql<string>`DATE_FORMAT(${allocations.workDate}, '%Y-%m') as month` 
+    })
+    .from(allocations)
+    .where(
+      and(
+        eq(allocations.workerId, workerId),
+        eq(allocations.clientId, clientId),
+        sql`${allocations.workDate} >= ${threeMonthsAgo.toISOString().split('T')[0]}`
+      )
+    )
+    .groupBy(sql`month`);
+  
+  const monthsCount = monthsWithClient.length;
+  
+  // Calcular score
+  const score = (consecutiveDays * 10) + (daysInMonth * 5) + (monthsCount * 20);
+  
+  // Determinar nível
+  let level: 'low' | 'medium' | 'high' | 'critical';
+  if (score <= 50) level = 'low';
+  else if (score <= 100) level = 'medium';
+  else if (score <= 150) level = 'high';
+  else level = 'critical';
+  
+  return {
+    score,
+    level,
+    consecutiveDays,
+    daysInMonth,
+    monthsCount
+  };
+}
+
+export async function updateWorkerRiskScore(workerId: number, score: number, level: 'low' | 'medium' | 'high' | 'critical') {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return await db.update(workers)
+    .set({ riskScore: score, riskLevel: level })
+    .where(eq(workers.id, workerId));
+}
+
+// ============================================================================
+// ALLOCATIONS (Alocações)
+// ============================================================================
+
+export async function createAllocation(allocation: InsertAllocation) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  // Calcular risco antes de criar alocação
+  const risk = await calculateWorkerRisk(
+    allocation.workerId,
+    allocation.clientId,
+    allocation.locationId
+  );
+  
+  // Atualizar dados de risco na alocação
+  allocation.consecutiveDays = (risk.consecutiveDays || 0) + 1; // +1 porque esta é uma nova alocação
+  allocation.daysThisMonth = (risk.daysInMonth || 0) + 1;
+  allocation.riskFlag = risk.level === 'high' || risk.level === 'critical';
+  
+  const result = await db.insert(allocations).values(allocation);
+  
+  // Atualizar score de risco do trabalhador
+  await updateWorkerRiskScore(allocation.workerId, risk.score, risk.level);
+  
+  return result;
+}
+
+export async function getAllocations(filters?: {
+  workerId?: number;
+  clientId?: number;
+  locationId?: number;
+  startDate?: string;
+  endDate?: string;
+  status?: string;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  let query = db.select().from(allocations);
+  
+  const conditions = [];
+  if (filters?.workerId) conditions.push(eq(allocations.workerId, filters.workerId));
+  if (filters?.clientId) conditions.push(eq(allocations.clientId, filters.clientId));
+  if (filters?.locationId) conditions.push(eq(allocations.locationId, filters.locationId));
+  if (filters?.startDate) conditions.push(sql`${allocations.workDate} >= ${filters.startDate}`);
+  if (filters?.endDate) conditions.push(sql`${allocations.workDate} <= ${filters.endDate}`);
+  if (filters?.status) conditions.push(eq(allocations.status, filters.status as any));
+  
+  if (conditions.length > 0) {
+    query = query.where(and(...conditions)) as any;
+  }
+  
+  return await query.orderBy(desc(allocations.workDate));
+}
+
+export async function updateAllocation(id: number, data: Partial<InsertAllocation>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return await db.update(allocations).set(data).where(eq(allocations.id, id));
+}
+
+// ============================================================================
+// WORK OFFERS (Ofertas de Trabalho - Documentação de Autonomia)
+// ============================================================================
+
+export async function createWorkOffer(offer: InsertWorkOffer) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return await db.insert(workOffers).values(offer);
+}
+
+export async function getWorkerOffers(workerId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db
+    .select()
+    .from(workOffers)
+    .where(eq(workOffers.workerId, workerId))
+    .orderBy(desc(workOffers.createdAt));
+}
+
+export async function respondToOffer(offerId: number, response: 'accepted' | 'refused', refusalReason?: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return await db.update(workOffers)
+    .set({ 
+      response, 
+      refusalReason,
+      respondedAt: new Date()
+    })
+    .where(eq(workOffers.id, offerId));
+}
+
+// ============================================================================
+// CLIENTS
+// ============================================================================
+
+export async function createClient(client: InsertClient) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return await db.insert(clients).values(client);
+}
+
+export async function getAllClients() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db.select().from(clients).orderBy(desc(clients.createdAt));
+}
+
+export async function getClientById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db.select().from(clients).where(eq(clients.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+// ============================================================================
+// WORK LOCATIONS
+// ============================================================================
+
+export async function createWorkLocation(location: InsertWorkLocation) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return await db.insert(workLocations).values(location);
+}
+
+export async function getLocationsByClient(clientId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  if (clientId) {
+    return await db
+      .select()
+      .from(workLocations)
+      .where(eq(workLocations.clientId, clientId))
+      .orderBy(desc(workLocations.createdAt));
+  }
+  
+  return await db.select().from(workLocations).orderBy(desc(workLocations.createdAt));
+}
+
+// ============================================================================
+// PAYMENTS
+// ============================================================================
+
+export async function createPayment(payment: InsertPayment) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return await db.insert(payments).values(payment);
+}
+
+export async function getWorkerPayments(workerId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db
+    .select()
+    .from(payments)
+    .where(eq(payments.workerId, workerId))
+    .orderBy(desc(payments.periodEnd));
+}
+
+// ============================================================================
+// WORKER TERMS
+// ============================================================================
+
+export async function createWorkerTerm(term: InsertWorkerTerm) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return await db.insert(workerTerms).values(term);
+}
+
+export async function getWorkerLatestTerm(workerId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db
+    .select()
+    .from(workerTerms)
+    .where(eq(workerTerms.workerId, workerId))
+    .orderBy(desc(workerTerms.acceptedAt))
+    .limit(1);
+  
+  return result.length > 0 ? result[0] : undefined;
+}
+
+// ============================================================================
+// INCIDENTS
+// ============================================================================
+
+export async function createIncident(incident: InsertIncident) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return await db.insert(incidents).values(incident);
+}
+
+export async function getAllIncidents() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db.select().from(incidents).orderBy(desc(incidents.createdAt));
+}
+
+// ============================================================================
+// EVALUATIONS
+// ============================================================================
+
+export async function createEvaluation(evaluation: InsertEvaluation) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return await db.insert(evaluations).values(evaluation);
+}
+
+export async function getAllocationEvaluations(allocationId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db
+    .select()
+    .from(evaluations)
+    .where(eq(evaluations.allocationId, allocationId))
+    .orderBy(desc(evaluations.createdAt));
+}

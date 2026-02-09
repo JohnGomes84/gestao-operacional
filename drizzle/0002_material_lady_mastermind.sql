@@ -1,0 +1,1 @@
+ALTER TABLE `allocations` ADD `jobFunction` varchar(100);
