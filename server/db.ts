@@ -606,3 +606,12 @@ export async function updateShift(id: number, data: Partial<InsertShift>) {
     .set(data)
     .where(eq(shifts.id, id));
 }
+
+
+export async function getLocationById(locationId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db.select().from(workLocations).where(eq(workLocations.id, locationId)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}

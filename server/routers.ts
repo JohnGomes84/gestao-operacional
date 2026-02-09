@@ -362,7 +362,41 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const { allocationId, workerSignature, location, ...benefits } = input;
         
-        return await db.updateAllocation(allocationId, {
+        // Validate distance if location is provided
+        let distanceWarning: string | undefined;
+        if (location) {
+          const allocations = await db.getAllocations({});
+          const allocation = allocations.find(a => a.id === allocationId);
+          
+          if (allocation && allocation.locationId) {
+            const workLocation = await db.getLocationById(allocation.locationId);
+            
+            if (workLocation && workLocation.latitude && workLocation.longitude) {
+              const [checkInLat, checkInLong] = location.split(',').map(Number);
+              const workLat = Number(workLocation.latitude);
+              const workLong = Number(workLocation.longitude);
+              
+              // Calculate distance using Haversine formula
+              const R = 6371e3; // Earth's radius in meters
+              const φ1 = (checkInLat * Math.PI) / 180;
+              const φ2 = (workLat * Math.PI) / 180;
+              const Δφ = ((workLat - checkInLat) * Math.PI) / 180;
+              const Δλ = ((workLong - checkInLong) * Math.PI) / 180;
+              
+              const a =
+                Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+              const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+              const distance = R * c; // Distance in meters
+              
+              if (distance > 500) {
+                distanceWarning = `⚠️ Check-in suspeito: ${Math.round(distance)}m do local (máximo: 500m)`;
+              }
+            }
+          }
+        }
+        
+        const result = await db.updateAllocation(allocationId, {
           status: 'in_progress',
           checkInTime: new Date(),
           checkInLocation: location,
@@ -370,6 +404,11 @@ export const appRouter = router({
           supervisorId: ctx.user?.id,
           ...benefits,
         });
+        
+        return {
+          ...result,
+          distanceWarning,
+        };
       }),
     
     // Confirmar saída do trabalhador

@@ -98,6 +98,15 @@ export const clients = mysqlTable("clients", {
   contactPhone: varchar("contactPhone", { length: 20 }),
   contactEmail: varchar("contactEmail", { length: 320 }),
   
+  // Endereço
+  street: varchar("street", { length: 255 }),
+  number: varchar("number", { length: 20 }),
+  complement: varchar("complement", { length: 100 }),
+  neighborhood: varchar("neighborhood", { length: 100 }),
+  city: varchar("city", { length: 100 }),
+  state: varchar("state", { length: 2 }),
+  zipCode: varchar("zipCode", { length: 10 }),
+  
   // Status
   status: mysqlEnum("status", ["active", "inactive"]).default("active").notNull(),
   

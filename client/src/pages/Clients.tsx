@@ -28,6 +28,13 @@ export default function Clients() {
     contactName: "",
     contactPhone: "",
     contactEmail: "",
+    street: "",
+    number: "",
+    complement: "",
+    neighborhood: "",
+    city: "",
+    state: "",
+    zipCode: "",
   });
 
   const [isLoadingCNPJ, setIsLoadingCNPJ] = useState(false);
@@ -56,6 +63,13 @@ export default function Clients() {
         companyName: data.razao_social || data.nome_fantasia || '',
         contactPhone: data.ddd_telefone_1 ? `(${data.ddd_telefone_1.substring(0, 2)}) ${data.ddd_telefone_1.substring(2)}` : '',
         contactEmail: data.email || '',
+        street: data.logradouro || '',
+        number: data.numero || '',
+        complement: data.complemento || '',
+        neighborhood: data.bairro || '',
+        city: data.municipio || '',
+        state: data.uf || '',
+        zipCode: data.cep || '',
       });
       
       toast.success('Dados da empresa carregados!');
@@ -86,6 +100,13 @@ export default function Clients() {
         contactName: "",
         contactPhone: "",
         contactEmail: "",
+        street: "",
+        number: "",
+        complement: "",
+        neighborhood: "",
+        city: "",
+        state: "",
+        zipCode: "",
       });
       refetch();
     },

@@ -246,3 +246,18 @@
 - [x] Preenchimento automático de dados da empresa
 - [x] Validação de CNPJ
 - [x] Tratamento de erros (CNPJ inválido, API indisponível)
+
+
+## APRIMORAMENTO - Busca de CNPJ com Endereço
+- [ ] Adicionar campos de endereço na tabela de clientes
+- [ ] Atualizar busca de CNPJ para preencher endereço completo
+- [ ] Incluir: logradouro, número, complemento, bairro, cidade, estado, CEP
+
+
+## NOVA FUNCIONALIDADE - Geolocalização e Validação de Check-in
+- [x] Integração com BrasilAPI CEP v2 (latitude/longitude)
+- [x] Adicionar campos de geolocalização na tabela de locais
+- [x] Capturar geolocalização do supervisor no check-in
+- [x] Calcular distância entre supervisor e local de trabalho
+- [x] Alertar quando check-in for feito longe do local (>500m)
+- [ ] Dashboard de check-ins suspeitos

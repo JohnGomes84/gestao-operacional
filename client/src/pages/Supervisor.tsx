@@ -29,8 +29,12 @@ export default function Supervisor() {
   });
 
   const checkIn = trpc.supervisor.checkIn.useMutation({
-    onSuccess: () => {
-      toast.success("Entrada confirmada com sucesso!");
+    onSuccess: (data: any) => {
+      if (data.distanceWarning) {
+        toast.warning(data.distanceWarning, { duration: 8000 });
+      } else {
+        toast.success("Entrada confirmada com sucesso!");
+      }
       setSelectedAllocation(null);
       utils.supervisor.todayAllocations.invalidate();
       clearSignature();

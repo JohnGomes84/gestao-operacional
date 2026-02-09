@@ -36,6 +36,13 @@
       "when": 1770679779584,
       "tag": "0004_curved_reavers",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1770681207705,
+      "tag": "0005_lovely_landau",
+      "breakpoints": true
     }
   ]
 }
