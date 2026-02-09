@@ -239,3 +239,10 @@
 - [ ] Atribuição de operações por supervisor
 - [ ] Histórico de confirmações por supervisor
 - [ ] Dashboard de supervisores ativos
+
+
+## NOVA FUNCIONALIDADE - Busca Automática de CNPJ
+- [x] Integração com BrasilAPI para busca de CNPJ
+- [x] Preenchimento automático de dados da empresa
+- [x] Validação de CNPJ
+- [x] Tratamento de erros (CNPJ inválido, API indisponível)

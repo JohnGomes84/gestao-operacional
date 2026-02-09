@@ -128,11 +128,9 @@ export default function Workers() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <Link href="/">
-                <a className="text-2xl font-bold text-slate-900 hover:text-slate-700">
-                  ML Serviços
-                </a>
-              </Link>
+              <Link href="/" className="text-2xl font-bold text-slate-900 hover:text-slate-700">
+              ML Serviços
+            </Link>
               <p className="text-sm text-slate-600">Gerenciar Trabalhadores</p>
             </div>
             <Button asChild variant="outline">

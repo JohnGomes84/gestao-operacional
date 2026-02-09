@@ -30,6 +30,42 @@ export default function Clients() {
     contactEmail: "",
   });
 
+  const [isLoadingCNPJ, setIsLoadingCNPJ] = useState(false);
+
+  const handleCNPJLookup = async (cnpj: string) => {
+    // Remove non-numeric characters
+    const cleanCNPJ = cnpj.replace(/\D/g, '');
+    
+    if (cleanCNPJ.length !== 14) {
+      toast.error('CNPJ deve ter 14 dígitos');
+      return;
+    }
+
+    setIsLoadingCNPJ(true);
+    try {
+      const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCNPJ}`);
+      
+      if (!response.ok) {
+        throw new Error('CNPJ não encontrado');
+      }
+
+      const data = await response.json();
+      
+      setClientFormData({
+        ...clientFormData,
+        companyName: data.razao_social || data.nome_fantasia || '',
+        contactPhone: data.ddd_telefone_1 ? `(${data.ddd_telefone_1.substring(0, 2)}) ${data.ddd_telefone_1.substring(2)}` : '',
+        contactEmail: data.email || '',
+      });
+      
+      toast.success('Dados da empresa carregados!');
+    } catch (error) {
+      toast.error('Erro ao buscar CNPJ. Verifique o número e tente novamente.');
+    } finally {
+      setIsLoadingCNPJ(false);
+    }
+  };
+
   const [locationFormData, setLocationFormData] = useState({
     locationName: "",
     address: "",
@@ -100,11 +136,9 @@ export default function Clients() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <Link href="/">
-                <a className="text-2xl font-bold text-slate-900 hover:text-slate-700">
-                  ML Serviços
-                </a>
-              </Link>
+              <Link href="/" className="text-2xl font-bold text-slate-900 hover:text-slate-700">
+              ML Serviços
+            </Link>
               <p className="text-sm text-slate-600">Gerenciar Clientes</p>
             </div>
             <Button asChild variant="outline">
@@ -154,16 +188,32 @@ export default function Clients() {
                   </div>
 
                   <div className="grid gap-2">
-                    <Label htmlFor="cnpj">CNPJ *</Label>
-                    <Input
-                      id="cnpj"
-                      placeholder="00.000.000/0000-00"
-                      value={clientFormData.cnpj}
-                      onChange={(e) =>
-                        setClientFormData({ ...clientFormData, cnpj: e.target.value })
-                      }
-                      required
-                    />
+                    <Label htmlFor="cnpj">CNPJ * (Digite e pressione Tab para buscar)</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="cnpj"
+                        placeholder="00.000.000/0000-00"
+                        value={clientFormData.cnpj}
+                        onChange={(e) =>
+                          setClientFormData({ ...clientFormData, cnpj: e.target.value })
+                        }
+                        onBlur={(e) => {
+                          if (e.target.value && e.target.value.length >= 14) {
+                            handleCNPJLookup(e.target.value);
+                          }
+                        }}
+                        disabled={isLoadingCNPJ}
+                        required
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => handleCNPJLookup(clientFormData.cnpj)}
+                        disabled={isLoadingCNPJ || !clientFormData.cnpj}
+                      >
+                        {isLoadingCNPJ ? "Buscando..." : "Buscar"}
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="grid gap-2">
