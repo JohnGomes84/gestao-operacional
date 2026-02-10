@@ -908,6 +908,24 @@ export const appRouter = router({
         }
         return await db.getWorkersWithLowAutonomy();
       }),
+
+    // Calcular riscos trabalhistas (admin only)
+    calculateRisks: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        return await db.calculateWorkerRisks();
+      }),
+
+    // Obter estatísticas de risco (admin only)
+    getRiskStats: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        return await db.getRiskStatistics();
+      }),
   }),
 });
 

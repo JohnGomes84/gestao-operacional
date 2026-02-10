@@ -1433,37 +1433,48 @@ export async function calculateConsecutiveDays(workerId: number, clientId: numbe
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Buscar alocações dos últimos 30 dias
+  // Buscar operações dos últimos 30 dias
   const thirtyDaysAgo = new Date(today);
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const recentAllocations = await db
-    .select()
-    .from(allocations)
+  // Join operationMembers com operations para filtrar por clientId
+  const recentOperations = await db
+    .select({
+      workDate: operations.workDate,
+      status: operationMembers.status,
+    })
+    .from(operationMembers)
+    .innerJoin(operations, eq(operationMembers.operationId, operations.id))
     .where(
       and(
-        eq(allocations.workerId, workerId),
-        eq(allocations.clientId, clientId),
-        gte(allocations.workDate, thirtyDaysAgo),
-        eq(allocations.status, "confirmed")
+        eq(operationMembers.workerId, workerId),
+        eq(operations.clientId, clientId),
+        gte(operations.workDate, thirtyDaysAgo),
+        or(
+          eq(operationMembers.status, "completed"),
+          eq(operationMembers.status, "present")
+        )
       )
     )
-    .orderBy(desc(allocations.workDate));
+    .orderBy(desc(operations.workDate));
 
-  if (recentAllocations.length === 0) return 0;
+  if (recentOperations.length === 0) return 0;
 
-  // Calcular dias consecutivos a partir de hoje (ou última data)
+  // Calcular dias consecutivos a partir da data mais recente
   let consecutiveDays = 0;
-  let currentDate = new Date(today);
+  // Começar da data mais recente encontrada (primeira no array ordenado por desc)
+  const mostRecentDate = new Date(recentOperations[0].workDate);
+  mostRecentDate.setHours(0, 0, 0, 0);
+  let currentDate = new Date(mostRecentDate);
 
   for (let i = 0; i < 10; i++) {
-    const hasAllocation = recentAllocations.some((alloc: any) => {
-      const allocDate = new Date(alloc.workDate);
-      allocDate.setHours(0, 0, 0, 0);
-      return allocDate.getTime() === currentDate.getTime();
+    const hasOperation = recentOperations.some((op: any) => {
+      const opDate = new Date(op.workDate);
+      opDate.setHours(0, 0, 0, 0);
+      return opDate.getTime() === currentDate.getTime();
     });
 
-    if (hasAllocation) {
+    if (hasOperation) {
       consecutiveDays++;
       currentDate.setDate(currentDate.getDate() - 1);
     } else {
@@ -1722,4 +1733,194 @@ export async function getWorkersWithLowAutonomy() {
     .innerJoin(workers, eq(workerAutonomyMetrics.workerId, workers.id))
     .where(lt(workerAutonomyMetrics.autonomyScore, 30))
     .orderBy(workerAutonomyMetrics.autonomyScore);
+}
+
+
+// ============================================================================
+// CÁLCULO DE RISCOS TRABALHISTAS
+// ============================================================================
+
+/**
+ * Calcular risco trabalhista de todos os trabalhadores
+ * Retorna lista com score de risco, exposição financeira e classificação
+ */
+export async function calculateWorkerRisks() {
+  const db = await getDb();
+  if (!db) return [];
+
+  // Buscar todos os trabalhadores ativos
+  const allWorkers = await db
+    .select({
+      id: workers.id,
+      fullName: workers.fullName,
+      cpf: workers.cpf,
+      dailyRate: workers.dailyRate,
+      isBlocked: workers.isBlocked,
+      blockReason: workers.blockReason,
+    })
+    .from(workers)
+    .where(eq(workers.status, "active"));
+
+  const risksData = [];
+
+  for (const worker of allWorkers) {
+    // Calcular dias consecutivos nos últimos 30 dias
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const recentOperations = await db
+      .select({
+        workDate: operations.workDate,
+        clientId: operations.clientId,
+        dailyRate: operationMembers.dailyRate,
+      })
+      .from(operationMembers)
+      .innerJoin(operations, eq(operationMembers.operationId, operations.id))
+      .where(
+        and(
+          eq(operationMembers.workerId, worker.id),
+          gte(operations.workDate, thirtyDaysAgo),
+          eq(operationMembers.status, "completed")
+        )
+      )
+      .orderBy(operations.workDate);
+
+    // Agrupar por cliente e calcular dias consecutivos
+    const clientConsecutiveDays: Record<number, number> = {};
+    const clientGroups: Record<number, Date[]> = {};
+
+    for (const op of recentOperations) {
+      const clientId = op.clientId;
+      if (!clientGroups[clientId]) {
+        clientGroups[clientId] = [];
+      }
+      clientGroups[clientId].push(op.workDate);
+    }
+
+    let maxConsecutiveDays = 0;
+    let totalDaysWorked = recentOperations.length;
+    let avgDailyRate = 0;
+
+    if (recentOperations.length > 0) {
+      avgDailyRate = recentOperations.reduce((sum, op) => 
+        sum + parseFloat(op.dailyRate.toString()), 0
+      ) / recentOperations.length;
+    }
+
+    // Calcular dias consecutivos por cliente
+    for (const clientId in clientGroups) {
+      const dates = clientGroups[clientId].sort((a, b) => a.getTime() - b.getTime());
+      let consecutive = 1;
+      let maxForClient = 1;
+
+      for (let i = 1; i < dates.length; i++) {
+        const diffDays = Math.floor(
+          (dates[i].getTime() - dates[i - 1].getTime()) / (1000 * 60 * 60 * 24)
+        );
+        
+        if (diffDays === 1) {
+          consecutive++;
+          maxForClient = Math.max(maxForClient, consecutive);
+        } else {
+          consecutive = 1;
+        }
+      }
+
+      clientConsecutiveDays[parseInt(clientId)] = maxForClient;
+      maxConsecutiveDays = Math.max(maxConsecutiveDays, maxForClient);
+    }
+
+    // Buscar métricas de autonomia
+    const autonomyMetrics = await getWorkerAutonomyMetrics(worker.id);
+    const autonomyScore = autonomyMetrics?.autonomyScore || 0;
+
+    // Calcular score de risco (0-100, maior = mais risco)
+    let riskScore = 0;
+
+    // Fator 1: Dias consecutivos (40 pontos)
+    if (maxConsecutiveDays >= 3) {
+      riskScore += 40;
+    } else if (maxConsecutiveDays === 2) {
+      riskScore += 25;
+    } else if (maxConsecutiveDays === 1) {
+      riskScore += 10;
+    }
+
+    // Fator 2: Total de dias trabalhados (20 pontos)
+    if (totalDaysWorked >= 20) {
+      riskScore += 20;
+    } else if (totalDaysWorked >= 15) {
+      riskScore += 15;
+    } else if (totalDaysWorked >= 10) {
+      riskScore += 10;
+    }
+
+    // Fator 3: Baixa autonomia (30 pontos)
+    if (autonomyScore < 30) {
+      riskScore += 30;
+    } else if (autonomyScore < 50) {
+      riskScore += 15;
+    }
+
+    // Fator 4: Bloqueado (10 pontos)
+    if (worker.isBlocked) {
+      riskScore += 10;
+    }
+
+    // Calcular exposição financeira
+    const financialExposure = maxConsecutiveDays * avgDailyRate;
+
+    // Classificar risco
+    let riskLevel: "low" | "medium" | "high" | "critical";
+    if (riskScore >= 70) {
+      riskLevel = "critical";
+    } else if (riskScore >= 50) {
+      riskLevel = "high";
+    } else if (riskScore >= 30) {
+      riskLevel = "medium";
+    } else {
+      riskLevel = "low";
+    }
+
+    risksData.push({
+      workerId: worker.id,
+      workerName: worker.fullName,
+      workerCpf: worker.cpf,
+      maxConsecutiveDays,
+      totalDaysWorked,
+      avgDailyRate: Math.round(avgDailyRate * 100) / 100,
+      financialExposure: Math.round(financialExposure * 100) / 100,
+      autonomyScore,
+      riskScore,
+      riskLevel,
+      isBlocked: worker.isBlocked,
+      blockReason: worker.blockReason,
+      clientsWithConsecutiveDays: Object.keys(clientConsecutiveDays).length,
+    });
+  }
+
+  // Ordenar por riskScore (maior primeiro)
+  return risksData.sort((a, b) => b.riskScore - a.riskScore);
+}
+
+/**
+ * Obter estatísticas gerais de risco
+ */
+export async function getRiskStatistics() {
+  const risks = await calculateWorkerRisks();
+
+  const stats = {
+    totalWorkers: risks.length,
+    criticalRisk: risks.filter(r => r.riskLevel === "critical").length,
+    highRisk: risks.filter(r => r.riskLevel === "high").length,
+    mediumRisk: risks.filter(r => r.riskLevel === "medium").length,
+    lowRisk: risks.filter(r => r.riskLevel === "low").length,
+    totalFinancialExposure: risks.reduce((sum, r) => sum + r.financialExposure, 0),
+    avgRiskScore: risks.length > 0 
+      ? risks.reduce((sum, r) => sum + r.riskScore, 0) / risks.length 
+      : 0,
+    workersBlocked: risks.filter(r => r.isBlocked).length,
+  };
+
+  return stats;
 }

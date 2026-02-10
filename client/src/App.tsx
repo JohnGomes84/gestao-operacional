@@ -21,6 +21,7 @@ import OperationAccept from "./pages/OperationAccept";
 import OperationDetails from "./pages/OperationDetails";
 import ComplianceManagement from "./pages/ComplianceManagement";
 import Shifts from "./pages/Shifts";
+import RiskDashboard from "./pages/RiskDashboard";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -42,6 +43,7 @@ function Router() {
         <Route path="/operacao/aceitar/:memberId" component={OperationAccept} />
         <Route path="/lider/operacao/:id" component={OperationDetails} />
         <Route path="/conformidade" component={ComplianceManagement} />
+        <Route path="/riscos" component={RiskDashboard} />
       <Route path={"/home"} component={Home} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}

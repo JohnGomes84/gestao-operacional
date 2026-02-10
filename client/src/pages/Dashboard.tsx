@@ -291,6 +291,17 @@ export default function Dashboard() {
                 </CardHeader>
               </Link>
             </Card>
+
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer bg-red-50 border-red-200">
+              <Link href="/riscos">
+                <CardHeader>
+                  <CardTitle className="text-base">⚠️ Dashboard de Riscos</CardTitle>
+                  <CardDescription>
+                    Trabalhadores em situação de risco trabalhista
+                  </CardDescription>
+                </CardHeader>
+              </Link>
+            </Card>
           </div>
         </section>
       </main>

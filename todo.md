@@ -579,3 +579,19 @@
 - [ ] Exportação para PDF
 - [ ] Métricas de conformidade geral
 - [ ] Gráficos de distribuição de risco
+
+
+## DASHBOARD DE RISCOS TRABALHISTAS
+- [ ] Funções backend para cálculo de riscos
+  - [ ] Calcular exposição financeira por trabalhador
+  - [ ] Classificar trabalhadores por nível de risco (alto/médio/baixo)
+  - [ ] Calcular dias consecutivos por trabalhador
+  - [ ] Calcular score de risco combinado
+- [ ] APIs tRPC para dashboard de riscos
+- [ ] Página /riscos com dashboard executivo
+  - [ ] Cards de métricas gerais
+  - [ ] Lista de trabalhadores em risco alto
+  - [ ] Lista de trabalhadores em risco médio
+  - [ ] Gráficos de distribuição
+  - [ ] Exportação de relatório PDF
+- [ ] Integração com dashboard principal
