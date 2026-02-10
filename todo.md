@@ -350,3 +350,12 @@
 - [x] Localizar anchor tag aninhado em /alocacoes (linha 131-135)
 - [x] Remover aninhamento inválido de <a> dentro de <a> (substituído por <span>)
 - [x] Testar correção no navegador
+
+
+## REVISÃO DE CÓDIGO - Verificar Anchor Tags Aninhados
+- [x] Revisar página Workers.tsx (corrigido header linha 131-135)
+- [x] Revisar página Clients.tsx (corrigido header linha 160-164)
+- [x] Revisar página Contracts.tsx (sem problemas)
+- [x] Revisar página Shifts.tsx (corrigido botão voltar linha 332-334)
+- [x] Revisar página BiweeklyReport.tsx (sem problemas)
+- [x] Corrigir todos os problemas encontrados

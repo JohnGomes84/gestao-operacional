@@ -329,9 +329,9 @@ export default function Shifts() {
       )}
 
       <div className="mt-8">
-        <Link href="/">
-          <Button variant="outline">← Voltar ao Dashboard</Button>
-        </Link>
+        <Button asChild variant="outline">
+          <Link href="/">← Voltar ao Dashboard</Link>
+        </Button>
       </div>
     </div>
   );
