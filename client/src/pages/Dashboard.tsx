@@ -237,6 +237,17 @@ export default function Dashboard() {
               </Link>
             </Card>
 
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+              <Link href="/turnos">
+                <CardHeader>
+                  <CardTitle className="text-base">🕐 Gerenciar Turnos</CardTitle>
+                  <CardDescription>
+                    Configurar turnos personalizados por cliente
+                  </CardDescription>
+                </CardHeader>
+              </Link>
+            </Card>
+
             <Card className="hover:shadow-lg transition-shadow cursor-pointer bg-blue-50 border-blue-200">
               <Link href="/supervisor">
                 <CardHeader>

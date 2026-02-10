@@ -573,7 +573,16 @@ export async function createShift(shift: InsertShift) {
   if (!db) throw new Error("Database not available");
   
   const result = await db.insert(shifts).values(shift);
-  return result;
+  const insertResult = Array.isArray(result) ? result[0] : result;
+  const insertId = Number(insertResult.insertId);
+  
+  // Fetch and return the created shift
+  const [createdShift] = await db
+    .select()
+    .from(shifts)
+    .where(eq(shifts.id, insertId));
+  
+  return createdShift;
 }
 
 export async function getAllShifts() {
@@ -601,10 +610,18 @@ export async function updateShift(id: number, data: Partial<InsertShift>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   
-  return await db
+  await db
     .update(shifts)
     .set(data)
     .where(eq(shifts.id, id));
+  
+  // Fetch and return the updated shift
+  const [updatedShift] = await db
+    .select()
+    .from(shifts)
+    .where(eq(shifts.id, id));
+  
+  return updatedShift;
 }
 
 
@@ -614,4 +631,13 @@ export async function getLocationById(locationId: number) {
   
   const result = await db.select().from(workLocations).where(eq(workLocations.id, locationId)).limit(1);
   return result.length > 0 ? result[0] : undefined;
+}
+
+export async function deleteShift(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return await db
+    .delete(shifts)
+    .where(eq(shifts.id, id));
 }

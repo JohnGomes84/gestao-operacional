@@ -322,12 +322,34 @@ export const appRouter = router({
       .input(z.object({
         clientId: z.number(),
         shiftName: z.string(),
+        shiftType: z.enum(["morning", "afternoon", "night", "business", "custom"]),
         startTime: z.string(),
         endTime: z.string(),
         description: z.string().optional(),
       }))
       .mutation(async ({ input }) => {
         return await db.createShift(input);
+      }),
+    
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        clientId: z.number(),
+        shiftName: z.string(),
+        shiftType: z.enum(["morning", "afternoon", "night", "business", "custom"]),
+        startTime: z.string(),
+        endTime: z.string(),
+        description: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        return await db.updateShift(id, data);
+      }),
+    
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        return await db.deleteShift(input.id);
       }),
   }),
 

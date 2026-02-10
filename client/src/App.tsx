@@ -10,6 +10,7 @@ import Workers from "./pages/Workers";
 import Clients from "./pages/Clients";
 import Allocations from "./pages/Allocations";
 import Contracts from "./pages/Contracts";
+import Shifts from "./pages/Shifts";
 import Supervisor from "./pages/Supervisor";
 
 function Router() {
@@ -21,6 +22,7 @@ function Router() {
       <Route path={"/clientes"} component={Clients} />
       <Route path={"/alocacoes"} component={Allocations} />
       <Route path={"/contratos"} component={Contracts} />
+      <Route path={"/turnos"} component={Shifts} />
       <Route path={"/supervisor"} component={Supervisor} />
       <Route path={"/home"} component={Home} />
       <Route path={"/404"} component={NotFound} />

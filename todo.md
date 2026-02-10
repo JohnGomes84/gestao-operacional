@@ -261,3 +261,16 @@
 - [x] Calcular distância entre supervisor e local de trabalho
 - [x] Alertar quando check-in for feito longe do local (>500m)
 - [ ] Dashboard de check-ins suspeitos
+
+
+## NOVA FUNCIONALIDADE - Gestão de Turnos Personalizáveis
+- [x] Criar página de gestão de turnos
+- [x] Interface para cadastrar turnos por cliente
+- [x] Configuração de horários de início e fim
+- [x] Tipos de turno (Manhã, Tarde, Noite, Comercial, Personalizado)
+- [x] API completa (criar, listar, atualizar, deletar turnos)
+- [x] Testes unitários passando (2/2)
+- [ ] Integrar turnos no formulário de alocação
+- [ ] Exibir turnos na interface do supervisor
+- [ ] Validar que turnos não se sobrepõem
+- [ ] Permitir turnos inativos/arquivados
