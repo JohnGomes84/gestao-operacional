@@ -14,6 +14,7 @@ import Supervisor from "./pages/Supervisor";
 import BiweeklyReport from "./pages/BiweeklyReport";
 import WorkerRegistrationForm from "./pages/WorkerRegistrationForm";
 import CreateOperation from "./pages/CreateOperation";
+import WorkerDetails from "./pages/WorkerDetails";
 import Shifts from "./pages/Shifts";
 
 function Router() {
@@ -30,6 +31,7 @@ function Router() {
       <Route path={"/supervisor"} component={Supervisor} />
         <Route path="/cadastro-trabalhador" component={WorkerRegistrationForm} />
         <Route path="/criar-operacao" component={CreateOperation} />
+        <Route path="/trabalhadores/:id" component={WorkerDetails} />
       <Route path={"/home"} component={Home} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}

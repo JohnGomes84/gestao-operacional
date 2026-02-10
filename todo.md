@@ -418,3 +418,10 @@
 - [ ] Hierarquia: Admin > Líder > Trabalhador
 - [ ] Permissões específicas por role
 - [ ] Auditoria completa de ações
+
+
+## BUG FIX - Erro no Botão "Ver Detalhes" do Card de Trabalhadores
+- [x] Investigar erro ao clicar em "Ver Detalhes" (rota não existia)
+- [x] Criar página WorkerDetails.tsx com informações completas
+- [x] Adicionar rota /trabalhadores/:id no App.tsx
+- [x] Testar correção (funcionando perfeitamente)
