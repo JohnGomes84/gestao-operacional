@@ -293,3 +293,47 @@
 - [x] Opção "Todos os clientes" como padrão
 - [x] Filtrar dados quando cliente específico for selecionado
 - [x] Testes unitários passando (4/4)
+
+## SISTEMA DE CADASTRO DE TRABALHADORES COM VALIDAÇÃO
+
+### Backend Implementado:
+- [x] Schema do banco de dados atualizado com todos os campos:
+  - [x] Nome completo, CPF, data de nascimento, nome da mãe
+  - [x] Endereço completo (rua, número, complemento, bairro, cidade, estado, CEP)
+  - [x] Telefone e email
+  - [x] Chave PIX com tipo (CPF, CNPJ, Email, Telefone, Aleatória)
+  - [x] URL do documento com foto e tipo de documento (RG/CNH/RNE)
+  - [x] Status de aprovação (pending, approved, rejected)
+  - [x] Status operacional (active, inactive, blocked)
+  - [x] Campos de aprovação (approvedBy, approvedAt, rejectionReason)
+- [x] Migração do banco executada com sucesso
+- [x] Validação de chave PIX implementada (18/20 testes passando)
+  - [x] Valida CPF, CNPJ, Email, Telefone, Chave Aleatória
+  - [x] Formatação automática de chaves
+- [x] APIs tRPC criadas:
+  - [x] workerRegistration.register (público, sem autenticação)
+  - [x] workerRegistration.listPending (admin only)
+  - [x] workerRegistration.approve (admin only)
+  - [x] workerRegistration.reject (admin only)
+- [x] Validação automática de idade (≥18 anos) no backend
+- [x] Bloqueio de menores de idade
+- [x] Funções de banco de dados:
+  - [x] createWorkerRegistration
+  - [x] getPendingWorkerRegistrations
+  - [x] approveWorkerRegistration
+  - [x] rejectWorkerRegistration
+
+### Frontend Pendente:
+- [ ] Formulário público de cadastro via link
+  - [ ] Upload de documento com foto para S3
+  - [ ] Validação de chave PIX em tempo real
+  - [ ] Campos de endereço completo
+  - [ ] Validação de CPF no frontend
+- [ ] Painel administrativo de aprovação
+  - [ ] Lista de cadastros pendentes
+  - [ ] Visualização de documentos
+  - [ ] Botões de aprovar/rejeitar
+  - [ ] Modal de rejeição com motivo
+- [ ] Sistema de tokens/links de cadastro por empresa
+- [ ] Notificação ao admin quando novo cadastro é recebido
+- [ ] Histórico de aprovações/rejeições

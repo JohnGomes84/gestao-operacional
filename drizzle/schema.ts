@@ -32,11 +32,32 @@ export const workers = mysqlTable("workers", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").references(() => users.id),
   
-  // Dados pessoais
+  // Dados pessoais obrigatórios
   fullName: varchar("fullName", { length: 255 }).notNull(),
   cpf: varchar("cpf", { length: 14 }).notNull().unique(),
+  dateOfBirth: date("dateOfBirth"), // Para validação de idade
+  motherName: varchar("motherName", { length: 255 }), // Nome da mãe
+  
+  // Contato
   phone: varchar("phone", { length: 20 }),
+  email: varchar("email", { length: 320 }),
+  
+  // Endereço completo
+  street: varchar("street", { length: 255 }),
+  number: varchar("number", { length: 20 }),
+  complement: varchar("complement", { length: 100 }),
+  neighborhood: varchar("neighborhood", { length: 100 }),
+  city: varchar("city", { length: 100 }),
+  state: varchar("state", { length: 2 }),
+  zipCode: varchar("zipCode", { length: 10 }),
+  
+  // Chave PIX
   pixKey: varchar("pixKey", { length: 255 }),
+  pixKeyType: mysqlEnum("pixKeyType", ["cpf", "cnpj", "email", "phone", "random"]),
+  
+  // Documento com foto
+  documentPhotoUrl: text("documentPhotoUrl"), // URL do documento (RG/CNH) no S3
+  documentType: mysqlEnum("documentType", ["rg", "cnh", "rne"]), // Tipo de documento
   
   // Tipo de contrato
   workerType: mysqlEnum("workerType", ["daily", "freelancer", "mei", "clt"]).notNull(),
@@ -44,8 +65,14 @@ export const workers = mysqlTable("workers", {
   // Dados bancários/pagamento
   dailyRate: decimal("dailyRate", { precision: 10, scale: 2 }),
   
-  // Status
-  status: mysqlEnum("status", ["active", "inactive", "blocked"]).default("active").notNull(),
+  // Status de aprovação
+  registrationStatus: mysqlEnum("registrationStatus", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  approvedBy: int("approvedBy").references(() => users.id), // Admin que aprovou
+  approvedAt: timestamp("approvedAt"),
+  rejectionReason: text("rejectionReason"),
+  
+  // Status operacional
+  status: mysqlEnum("status", ["active", "inactive", "blocked"]).default("inactive").notNull(),
   
   // Controle de risco trabalhista
   riskScore: int("riskScore").default(0), // 0-100

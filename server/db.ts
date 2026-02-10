@@ -797,3 +797,106 @@ export async function getBiweeklyReport(year: number, month: number, period: "fi
     totalPersonDays: allocationsData.length,
   };
 }
+
+
+// ============================================================================
+// WORKER REGISTRATION (Cadastro de trabalhadores)
+// ============================================================================
+
+export async function createWorkerRegistration(data: {
+  fullName: string;
+  cpf: string;
+  dateOfBirth: string;
+  motherName: string;
+  phone: string;
+  email?: string;
+  street: string;
+  number: string;
+  complement?: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  pixKey: string;
+  pixKeyType: "cpf" | "cnpj" | "email" | "phone" | "random";
+  documentPhotoUrl: string;
+  documentType: "rg" | "cnh" | "rne";
+  workerType: "daily" | "freelancer" | "mei" | "clt";
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(workers).values({
+    fullName: data.fullName,
+    cpf: data.cpf,
+    dateOfBirth: new Date(data.dateOfBirth),
+    motherName: data.motherName,
+    phone: data.phone,
+    email: data.email,
+    street: data.street,
+    number: data.number,
+    complement: data.complement,
+    neighborhood: data.neighborhood,
+    city: data.city,
+    state: data.state,
+    zipCode: data.zipCode,
+    pixKey: data.pixKey,
+    pixKeyType: data.pixKeyType,
+    documentPhotoUrl: data.documentPhotoUrl,
+    documentType: data.documentType,
+    workerType: data.workerType,
+    registrationStatus: "pending",
+    status: "inactive",
+  });
+
+  const insertId = Number((Array.isArray(result) ? result[0] : result).insertId);
+  
+  // Retornar o trabalhador criado
+  const [worker] = await db.select().from(workers).where(eq(workers.id, insertId));
+  return worker;
+}
+
+export async function getPendingWorkerRegistrations() {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db
+    .select()
+    .from(workers)
+    .where(eq(workers.registrationStatus, "pending"))
+    .orderBy(desc(workers.createdAt));
+}
+
+export async function approveWorkerRegistration(workerId: number, approvedBy: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db
+    .update(workers)
+    .set({
+      registrationStatus: "approved",
+      status: "active",
+      approvedBy,
+      approvedAt: new Date(),
+    })
+    .where(eq(workers.id, workerId));
+
+  const [worker] = await db.select().from(workers).where(eq(workers.id, workerId));
+  return worker;
+}
+
+export async function rejectWorkerRegistration(workerId: number, reason: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db
+    .update(workers)
+    .set({
+      registrationStatus: "rejected",
+      rejectionReason: reason,
+    })
+    .where(eq(workers.id, workerId));
+
+  const [worker] = await db.select().from(workers).where(eq(workers.id, workerId));
+  return worker;
+}

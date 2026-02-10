@@ -1,4 +1,5 @@
 import { COOKIE_NAME } from "@shared/const";
+import { TRPCError } from "@trpc/server";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
@@ -480,6 +481,87 @@ export const appRouter = router({
       }))
       .query(async ({ input }) => {
         return await db.getBiweeklyReport(input.year, input.month, input.period, input.clientId);
+      }),
+  }),
+
+  // ============================================================================
+  // WORKER REGISTRATION (Cadastro público de trabalhadores)
+  // ============================================================================
+  workerRegistration: router({
+    // Cadastro público - sem autenticação
+    register: publicProcedure
+      .input(z.object({
+        fullName: z.string().min(3),
+        cpf: z.string().length(11),
+        dateOfBirth: z.string(), // YYYY-MM-DD
+        motherName: z.string().min(3),
+        phone: z.string(),
+        email: z.string().email().optional(),
+        street: z.string(),
+        number: z.string(),
+        complement: z.string().optional(),
+        neighborhood: z.string(),
+        city: z.string(),
+        state: z.string().length(2),
+        zipCode: z.string(),
+        pixKey: z.string(),
+        pixKeyType: z.enum(["cpf", "cnpj", "email", "phone", "random"]),
+        documentPhotoUrl: z.string().url(),
+        documentType: z.enum(["rg", "cnh", "rne"]),
+        workerType: z.enum(["daily", "freelancer", "mei", "clt"]),
+      }))
+      .mutation(async ({ input }) => {
+        // Validar idade (≥18 anos)
+        const birthDate = new Date(input.dateOfBirth);
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+        
+        if (age < 18) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Cadastro não permitido para menores de 18 anos",
+          });
+        }
+        
+        return await db.createWorkerRegistration(input);
+      }),
+    
+    // Listar cadastros pendentes (admin only)
+    listPending: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        return await db.getPendingWorkerRegistrations();
+      }),
+    
+    // Aprovar cadastro (admin only)
+    approve: protectedProcedure
+      .input(z.object({
+        workerId: z.number(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        return await db.approveWorkerRegistration(input.workerId, ctx.user.id);
+      }),
+    
+    // Rejeitar cadastro (admin only)
+    reject: protectedProcedure
+      .input(z.object({
+        workerId: z.number(),
+        reason: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        return await db.rejectWorkerRegistration(input.workerId, input.reason);
       }),
   }),
 });
