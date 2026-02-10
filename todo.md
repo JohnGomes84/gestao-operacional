@@ -425,3 +425,18 @@
 - [x] Criar página WorkerDetails.tsx com informações completas
 - [x] Adicionar rota /trabalhadores/:id no App.tsx
 - [x] Testar correção (funcionando perfeitamente)
+
+
+## CONTINUAÇÃO - Sistema de Gestão de Operações
+- [x] Dashboard do líder (mobile-friendly)
+  - [x] Listagem de operações por status
+  - [x] Cards de estatísticas
+  - [x] Filtros por status
+  - [x] Visualização mobile-friendly
+- [x] Página de aceite via CPF + termo
+  - [x] Formulário de CPF com validação
+  - [x] Termo de responsabilidade completo
+  - [x] Checkbox de aceite
+  - [x] Integração com API
+- [ ] ETAPA 2 completa (check-in/out, ocorrências)
+- [ ] ETAPA 3 completa (notificações, melhorias)
