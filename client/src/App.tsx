@@ -15,6 +15,7 @@ import BiweeklyReport from "./pages/BiweeklyReport";
 import WorkerRegistrationForm from "./pages/WorkerRegistrationForm";
 import CreateOperation from "./pages/CreateOperation";
 import WorkerDetails from "./pages/WorkerDetails";
+import PendingWorkerApprovals from "./pages/PendingWorkerApprovals";
 import LeaderDashboard from "./pages/LeaderDashboard";
 import OperationAccept from "./pages/OperationAccept";
 import OperationDetails from "./pages/OperationDetails";
@@ -36,6 +37,7 @@ function Router() {
         <Route path="/cadastro-trabalhador" component={WorkerRegistrationForm} />
         <Route path="/criar-operacao" component={CreateOperation} />
         <Route path="/trabalhadores/:id" component={WorkerDetails} />
+        <Route path="/trabalhadores-pendentes" component={PendingWorkerApprovals} />
         <Route path="/lider/dashboard" component={LeaderDashboard} />
         <Route path="/operacao/aceitar/:memberId" component={OperationAccept} />
         <Route path="/lider/operacao/:id" component={OperationDetails} />

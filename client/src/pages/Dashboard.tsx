@@ -280,6 +280,17 @@ export default function Dashboard() {
                 </CardHeader>
               </Link>
             </Card>
+
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer bg-orange-50 border-orange-200">
+              <Link href="/trabalhadores-pendentes">
+                <CardHeader>
+                  <CardTitle className="text-base">✅ Cadastros Pendentes</CardTitle>
+                  <CardDescription>
+                    Aprovar ou rejeitar cadastros de trabalhadores
+                  </CardDescription>
+                </CardHeader>
+              </Link>
+            </Card>
           </div>
         </section>
       </main>

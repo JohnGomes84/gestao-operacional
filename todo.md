@@ -488,3 +488,21 @@
   - [ ] Bloqueios por tipo
   - [ ] Ocorrências por tipo
   - [ ] Taxa de conformidade
+
+
+## PAINEL DE APROVAÇÃO DE CADASTROS PENDENTES
+- [x] Criar página /trabalhadores-pendentes
+- [x] Listar cadastros com status "pending"
+- [x] Exibir dados completos do trabalhador (8 seções)
+  - [x] Dados pessoais (CPF, data nascimento, mãe, contrato)
+  - [x] Contato (telefone, email)
+  - [x] Endereço completo (7 campos)
+  - [x] Dados de pagamento (tipo PIX, chave)
+  - [x] Documento (tipo, visualização)
+- [x] Visualização do documento com foto em modal
+- [x] Botão "Aprovar" com dialog de confirmação
+- [x] Botão "Rejeitar" com modal de motivo obrigatório
+- [x] Card no dashboard para acesso rápido
+- [x] Contador de cadastros pendentes
+- [x] Integração com APIs existentes (listPending, approve, reject)
+- [ ] Notificação automática ao admin quando novo cadastro chegar
