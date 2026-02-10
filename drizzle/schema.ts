@@ -15,7 +15,7 @@ export const users = mysqlTable("users", {
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["admin", "supervisor", "worker", "client"]).default("worker").notNull(),
+  role: mysqlEnum("role", ["admin", "leader", "supervisor", "worker", "client"]).default("worker").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -537,3 +537,150 @@ export const procedureReadLogs = mysqlTable("procedureReadLogs", {
 
 export type ProcedureReadLog = typeof procedureReadLogs.$inferSelect;
 export type InsertProcedureReadLog = typeof procedureReadLogs.$inferInsert;
+
+// ============================================================================
+// OPERAÇÕES (Agrupamento de alocações com líder)
+// ============================================================================
+
+export const operations = mysqlTable("operations", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  // Relacionamentos
+  clientId: int("clientId").references(() => clients.id).notNull(),
+  locationId: int("locationId").references(() => workLocations.id).notNull(),
+  contractId: int("contractId").references(() => contracts.id),
+  shiftId: int("shiftId").references(() => shifts.id).notNull(),
+  leaderId: int("leaderId").references(() => users.id).notNull(), // Líder de equipe
+  createdBy: int("createdBy").references(() => users.id).notNull(), // Admin que criou
+  
+  // Detalhes da operação
+  operationName: varchar("operationName", { length: 255 }).notNull(),
+  workDate: date("workDate").notNull(),
+  description: text("description"),
+  
+  // Status do ciclo de vida
+  status: mysqlEnum("status", [
+    "created",        // Criada pelo admin
+    "pending_accept", // Aguardando aceite dos trabalhadores
+    "accepted",       // Todos aceitaram
+    "in_progress",    // Líder iniciou a operação
+    "completed",      // Líder finalizou
+    "billed"          // Faturada
+  ]).default("created").notNull(),
+  
+  // Timestamps do ciclo
+  acceptedAt: timestamp("acceptedAt"),
+  startedAt: timestamp("startedAt"),
+  completedAt: timestamp("completedAt"),
+  billedAt: timestamp("billedAt"),
+  
+  // Valores totais
+  totalWorkers: int("totalWorkers").default(0),
+  totalDailyRate: decimal("totalDailyRate", { precision: 10, scale: 2 }),
+  totalMealCost: decimal("totalMealCost", { precision: 10, scale: 2 }),
+  totalNetPay: decimal("totalNetPay", { precision: 10, scale: 2 }),
+  
+  // Metadados
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Operation = typeof operations.$inferSelect;
+export type InsertOperation = typeof operations.$inferInsert;
+
+// ============================================================================
+// MEMBROS DA OPERAÇÃO (Trabalhadores alocados)
+// ============================================================================
+
+export const operationMembers = mysqlTable("operationMembers", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  // Relacionamentos
+  operationId: int("operationId").references(() => operations.id).notNull(),
+  workerId: int("workerId").references(() => workers.id).notNull(),
+  allocationId: int("allocationId").references(() => allocations.id), // Link com alocação individual
+  
+  // Função e valores
+  jobFunction: varchar("jobFunction", { length: 100 }).notNull(),
+  dailyRate: decimal("dailyRate", { precision: 10, scale: 2 }).notNull(),
+  
+  // Status individual
+  status: mysqlEnum("status", [
+    "invited",      // Convidado para a operação
+    "accepted",     // Aceitou via CPF + termo
+    "rejected",     // Recusou
+    "present",      // Presente (check-in feito)
+    "absent",       // Faltou
+    "completed"     // Concluiu a operação
+  ]).default("invited").notNull(),
+  
+  // Aceite
+  acceptedAt: timestamp("acceptedAt"),
+  acceptanceIp: varchar("acceptanceIp", { length: 45 }),
+  cpfConfirmed: boolean("cpfConfirmed").default(false),
+  termAccepted: boolean("termAccepted").default(false),
+  
+  // Check-in/out
+  checkInTime: timestamp("checkInTime"),
+  checkOutTime: timestamp("checkOutTime"),
+  
+  // Consumo
+  tookMeal: boolean("tookMeal").default(false),
+  usedEpi: boolean("usedEpi").default(false),
+  
+  // Observações
+  notes: text("notes"),
+  
+  // Metadados
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type OperationMember = typeof operationMembers.$inferSelect;
+export type InsertOperationMember = typeof operationMembers.$inferInsert;
+
+// ============================================================================
+// OCORRÊNCIAS DA OPERAÇÃO
+// ============================================================================
+
+export const operationIncidents = mysqlTable("operationIncidents", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  // Relacionamentos
+  operationId: int("operationId").references(() => operations.id).notNull(),
+  memberId: int("memberId").references(() => operationMembers.id), // Opcional: se for específico de um trabalhador
+  reportedBy: int("reportedBy").references(() => users.id).notNull(), // Quem reportou (geralmente o líder)
+  
+  // Tipo de ocorrência
+  incidentType: mysqlEnum("incidentType", [
+    "absence",          // Falta
+    "late_arrival",     // Atraso
+    "early_departure",  // Saída antecipada
+    "misconduct",       // Falta grave
+    "accident",         // Acidente
+    "equipment_issue",  // Problema com equipamento
+    "quality_issue",    // Problema de qualidade
+    "other"             // Outro
+  ]).notNull(),
+  
+  // Severidade
+  severity: mysqlEnum("severity", ["low", "medium", "high", "critical"]).notNull(),
+  
+  // Descrição
+  description: text("description").notNull(),
+  
+  // Evidências
+  photos: text("photos"), // JSON array de URLs S3
+  
+  // Status
+  status: mysqlEnum("status", ["open", "investigating", "resolved"]).default("open").notNull(),
+  resolvedAt: timestamp("resolvedAt"),
+  resolution: text("resolution"),
+  
+  // Metadados
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type OperationIncident = typeof operationIncidents.$inferSelect;
+export type InsertOperationIncident = typeof operationIncidents.$inferInsert;

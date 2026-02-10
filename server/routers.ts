@@ -588,6 +588,174 @@ export const appRouter = router({
         return await db.rejectWorkerRegistration(input.workerId, input.reason);
       }),
   }),
+
+  // ============================================================================
+  // OPERATIONS
+  // ============================================================================
+  
+  operations: router({
+    // Criar operação (Admin only)
+    create: protectedProcedure
+      .input(z.object({
+        clientId: z.number(),
+        locationId: z.number(),
+        contractId: z.number().nullable(),
+        shiftId: z.number(),
+        leaderId: z.number(),
+        operationName: z.string(),
+        workDate: z.string(),
+        description: z.string().optional(),
+        members: z.array(z.object({
+          workerId: z.number(),
+          jobFunction: z.string(),
+          dailyRate: z.number(),
+        })),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Apenas administradores podem criar operações" });
+        }
+        
+        return await db.createOperation({
+          ...input,
+          createdBy: ctx.user.id,
+        });
+      }),
+    
+    // Listar operações do líder
+    listByLeader: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "leader" && ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Acesso negado" });
+        }
+        
+        const leaderId = ctx.user.role === "admin" ? undefined : ctx.user.id;
+        if (!leaderId && ctx.user.role === "leader") {
+          return [];
+        }
+        
+        return await db.getOperationsByLeader(leaderId || ctx.user.id);
+      }),
+    
+    // Obter detalhes da operação
+    getById: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const operation = await db.getOperationById(input.id);
+        
+        if (!operation) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Operação não encontrada" });
+        }
+        
+        // Verificar permissão
+        if (ctx.user.role !== "admin" && ctx.user.role !== "leader") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Acesso negado" });
+        }
+        
+        if (ctx.user.role === "leader" && operation.leaderId !== ctx.user.id) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Você não é o líder desta operação" });
+        }
+        
+        return operation;
+      }),
+    
+    // Aceitar participação (Trabalhador)
+    accept: publicProcedure
+      .input(z.object({
+        memberId: z.number(),
+        cpf: z.string(),
+        ip: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        return await db.acceptOperation(input.memberId, input.cpf, input.ip);
+      }),
+    
+    // Iniciar operação (Líder)
+    start: protectedProcedure
+      .input(z.object({ operationId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "leader" && ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Apenas líderes podem iniciar operações" });
+        }
+        
+        return await db.startOperation(input.operationId, ctx.user.id);
+      }),
+    
+    // Check-in de membro (Líder)
+    checkIn: protectedProcedure
+      .input(z.object({ memberId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "leader" && ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Apenas líderes podem fazer check-in" });
+        }
+        
+        return await db.checkInMember(input.memberId);
+      }),
+    
+    // Check-out de membro (Líder)
+    checkOut: protectedProcedure
+      .input(z.object({
+        memberId: z.number(),
+        tookMeal: z.boolean(),
+        usedEpi: z.boolean(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "leader" && ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Apenas líderes podem fazer check-out" });
+        }
+        
+        return await db.checkOutMember(input.memberId, {
+          tookMeal: input.tookMeal,
+          usedEpi: input.usedEpi,
+          notes: input.notes,
+        });
+      }),
+    
+    // Completar operação (Líder)
+    complete: protectedProcedure
+      .input(z.object({ operationId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "leader" && ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Apenas líderes podem completar operações" });
+        }
+        
+        return await db.completeOperation(input.operationId, ctx.user.id);
+      }),
+    
+    // Registrar ocorrência (Líder)
+    createIncident: protectedProcedure
+      .input(z.object({
+        operationId: z.number(),
+        memberId: z.number().optional(),
+        incidentType: z.enum(["absence", "late_arrival", "early_departure", "misconduct", "accident", "equipment_issue", "quality_issue", "other"]),
+        severity: z.enum(["low", "medium", "high", "critical"]),
+        description: z.string(),
+        photos: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "leader" && ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Apenas líderes podem registrar ocorrências" });
+        }
+        
+        return await db.createOperationIncident({
+          ...input,
+          reportedBy: ctx.user.id,
+        });
+      }),
+    
+    // Listar ocorrências
+    listIncidents: protectedProcedure
+      .input(z.object({ operationId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        if (ctx.user.role !== "leader" && ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Acesso negado" });
+        }
+        
+        return await db.getOperationIncidents(input.operationId);
+      }),
+  }),
+
 });
 
 export type AppRouter = typeof appRouter;

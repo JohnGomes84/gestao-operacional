@@ -13,6 +13,7 @@ import Contracts from "./pages/Contracts";
 import Supervisor from "./pages/Supervisor";
 import BiweeklyReport from "./pages/BiweeklyReport";
 import WorkerRegistrationForm from "./pages/WorkerRegistrationForm";
+import CreateOperation from "./pages/CreateOperation";
 import Shifts from "./pages/Shifts";
 
 function Router() {
@@ -27,7 +28,8 @@ function Router() {
       <Route path={"/turnos"} component={Shifts} />
       <Route path={"/relatorios/quinzenal"} component={BiweeklyReport} />
       <Route path={"/supervisor"} component={Supervisor} />
-      <Route path={"/cadastro-trabalhador"} component={WorkerRegistrationForm} />
+        <Route path="/cadastro-trabalhador" component={WorkerRegistrationForm} />
+        <Route path="/criar-operacao" component={CreateOperation} />
       <Route path={"/home"} component={Home} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}

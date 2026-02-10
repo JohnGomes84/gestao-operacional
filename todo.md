@@ -359,3 +359,62 @@
 - [x] Revisar página Shifts.tsx (corrigido botão voltar linha 332-334)
 - [x] Revisar página BiweeklyReport.tsx (sem problemas)
 - [x] Corrigir todos os problemas encontrados
+
+
+## SISTEMA COMPLETO DE GESTÃO DE OPERAÇÕES
+
+### ETAPA 1 - Operações com Líder e Aceite
+- [x] Reformular schema de operações (3 novas tabelas)
+  - [x] operations (21 campos, 6 FKs)
+  - [x] operationMembers (18 campos, 3 FKs)
+  - [x] operationIncidents (13 campos, 3 FKs)
+- [x] Adicionar role "leader" aos usuários
+- [x] Funções de banco de dados (9 funções)
+  - [x] createOperation, getOperationById, getOperationsByLeader
+  - [x] acceptOperation, startOperation, completeOperation
+  - [x] checkInMember, checkOutMember
+  - [x] createOperationIncident, getOperationIncidents
+- [x] APIs tRPC completas (10 endpoints)
+  - [x] operations.create (admin only)
+  - [x] operations.listByLeader (leader/admin)
+  - [x] operations.getById (leader/admin)
+  - [x] operations.accept (público)
+  - [x] operations.start (leader)
+  - [x] operations.checkIn (leader)
+  - [x] operations.checkOut (leader)
+  - [x] operations.complete (leader)
+  - [x] operations.createIncident (leader)
+  - [x] operations.listIncidents (leader/admin)
+- [x] Interface admin: criar operação
+  - [x] Seleção de cliente, local, data, turno, líder
+  - [x] Adicionar múltiplos trabalhadores com função e diária
+  - [x] Validações de formulário
+- [ ] Gerar card de operação para o líder
+- [ ] Interface de aceite via CPF + termo de responsabilidade
+- [ ] Validação de CPF antes do aceite
+- [ ] Registro de timestamp de aceite
+
+### ETAPA 2 - Check-in/out e Ocorrências
+- [ ] Sistema de check-in pelo líder (iniciar operação)
+- [ ] Check-out individual por trabalhador
+- [ ] Registro de ocorrências durante operação
+- [ ] Registro de faltas e motivos
+- [ ] Confirmação de consumo de marmita
+- [ ] Confirmação de uso de EPI
+- [ ] Registro de intercorrências
+- [ ] Marcação de faltas graves
+
+### ETAPA 3 - Dashboard do Líder e Notificações
+- [ ] Dashboard mobile para líder de equipe
+- [ ] Lista de operações ativas/pendentes
+- [ ] Card detalhado de operação
+- [ ] Histórico de desempenho por trabalhador
+- [ ] Notificações em tempo real para líder
+- [ ] Notificações para trabalhadores (nova operação)
+- [ ] Sistema de alertas para admin
+
+### Melhorias de Estrutura
+- [ ] Adicionar role "leader" no sistema de usuários
+- [ ] Hierarquia: Admin > Líder > Trabalhador
+- [ ] Permissões específicas por role
+- [ ] Auditoria completa de ações

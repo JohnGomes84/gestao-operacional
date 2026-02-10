@@ -1,5 +1,6 @@
 import { eq, and, gte, lte, desc, sql, count, or, isNotNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
+import * as schema from "../drizzle/schema";
 import { 
   InsertUser, users,
   workers, InsertWorker, Worker,
@@ -16,7 +17,10 @@ import {
   payments, InsertPayment,
   evaluations, InsertEvaluation,
   procedures, InsertProcedure,
-  procedureReadLogs, InsertProcedureReadLog
+  procedureReadLogs, InsertProcedureReadLog,
+  operations, InsertOperation,
+  operationMembers, InsertOperationMember,
+  operationIncidents, InsertOperationIncident
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -899,4 +903,304 @@ export async function rejectWorkerRegistration(workerId: number, reason: string)
 
   const [worker] = await db.select().from(workers).where(eq(workers.id, workerId));
   return worker;
+}
+
+
+// ============================================================================
+// OPERATIONS
+// ============================================================================
+
+export async function createOperation(data: {
+  clientId: number;
+  locationId: number;
+  contractId: number | null;
+  shiftId: number;
+  leaderId: number;
+  createdBy: number;
+  operationName: string;
+  workDate: string;
+  description?: string;
+  members: Array<{
+    workerId: number;
+    jobFunction: string;
+    dailyRate: number;
+  }>;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const { members, ...operationData } = data;
+  
+  // Calcular totais
+  const totalWorkers = members.length;
+  const totalDailyRate = members.reduce((sum, m) => sum + m.dailyRate, 0);
+  
+  // Criar operação
+  const [result] = await db.insert(schema.operations).values({
+    clientId: operationData.clientId,
+    locationId: operationData.locationId,
+    contractId: operationData.contractId,
+    shiftId: operationData.shiftId,
+    leaderId: operationData.leaderId,
+    createdBy: operationData.createdBy,
+    operationName: operationData.operationName,
+    workDate: new Date(operationData.workDate),
+    description: operationData.description,
+    status: "created",
+  });
+  
+  const operationId = Number(result.insertId);
+  
+  // Criar membros
+  for (const member of members) {
+    await db.insert(schema.operationMembers).values({
+      operationId,
+      workerId: member.workerId,
+      jobFunction: member.jobFunction,
+      dailyRate: member.dailyRate.toString(),
+      status: "invited",
+    });
+  }
+  
+  // Buscar operação completa
+  const [operation] = await db
+    .select()
+    .from(schema.operations)
+    .where(eq(schema.operations.id, operationId));
+    
+  return operation;
+}
+
+export async function getOperationById(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const [operation] = await db
+    .select()
+    .from(schema.operations)
+    .where(eq(schema.operations.id, id));
+    
+  if (!operation) return null;
+  
+  // Buscar membros
+  const members = await db
+    .select({
+      id: schema.operationMembers.id,
+      workerId: schema.operationMembers.workerId,
+      workerName: schema.workers.fullName,
+      workerCpf: schema.workers.cpf,
+      jobFunction: schema.operationMembers.jobFunction,
+      dailyRate: schema.operationMembers.dailyRate,
+      status: schema.operationMembers.status,
+      acceptedAt: schema.operationMembers.acceptedAt,
+      checkInTime: schema.operationMembers.checkInTime,
+      checkOutTime: schema.operationMembers.checkOutTime,
+      tookMeal: schema.operationMembers.tookMeal,
+      usedEpi: schema.operationMembers.usedEpi,
+      notes: schema.operationMembers.notes,
+    })
+    .from(schema.operationMembers)
+    .leftJoin(schema.workers, eq(schema.operationMembers.workerId, schema.workers.id))
+    .where(eq(schema.operationMembers.operationId, id));
+  
+  return { ...operation, members };
+}
+
+export async function getOperationsByLeader(leaderId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const operations = await db
+    .select({
+      id: schema.operations.id,
+      operationName: schema.operations.operationName,
+      workDate: schema.operations.workDate,
+      status: schema.operations.status,
+      clientName: schema.clients.companyName,
+      locationName: schema.workLocations.locationName,
+      shiftName: schema.shifts.shiftName,
+      totalWorkers: schema.operations.totalWorkers,
+      createdAt: schema.operations.createdAt,
+    })
+    .from(schema.operations)
+    .leftJoin(schema.clients, eq(schema.operations.clientId, schema.clients.id))
+    .leftJoin(schema.workLocations, eq(schema.operations.locationId, schema.workLocations.id))
+    .leftJoin(schema.shifts, eq(schema.operations.shiftId, schema.shifts.id))
+    .where(eq(schema.operations.leaderId, leaderId))
+    .orderBy(desc(schema.operations.createdAt));
+    
+  return operations;
+}
+
+export async function acceptOperation(memberId: number, cpf: string, ip: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  // Verificar se o CPF corresponde ao trabalhador
+  const [member] = await db
+    .select({
+      workerId: schema.operationMembers.workerId,
+      workerCpf: schema.workers.cpf,
+    })
+    .from(schema.operationMembers)
+    .leftJoin(schema.workers, eq(schema.operationMembers.workerId, schema.workers.id))
+    .where(eq(schema.operationMembers.id, memberId));
+    
+  if (!member || member.workerCpf !== cpf) {
+    throw new Error("CPF não corresponde ao trabalhador");
+  }
+  
+  // Atualizar status
+  await db
+    .update(schema.operationMembers)
+    .set({
+      status: "accepted",
+      acceptedAt: new Date(),
+      acceptanceIp: ip,
+      cpfConfirmed: true,
+      termAccepted: true,
+    })
+    .where(eq(schema.operationMembers.id, memberId));
+    
+  return { success: true };
+}
+
+export async function startOperation(operationId: number, leaderId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  // Verificar se o líder é o correto
+  const [operation] = await db
+    .select()
+    .from(schema.operations)
+    .where(eq(schema.operations.id, operationId));
+    
+  if (!operation || operation.leaderId !== leaderId) {
+    throw new Error("Operação não encontrada ou líder incorreto");
+  }
+  
+  // Atualizar status
+  await db
+    .update(schema.operations)
+    .set({
+      status: "in_progress",
+      startedAt: new Date(),
+    })
+    .where(eq(schema.operations.id, operationId));
+    
+  return { success: true };
+}
+
+export async function checkInMember(memberId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db
+    .update(schema.operationMembers)
+    .set({
+      status: "present",
+      checkInTime: new Date(),
+    })
+    .where(eq(schema.operationMembers.id, memberId));
+    
+  return { success: true };
+}
+
+export async function checkOutMember(memberId: number, data: {
+  tookMeal: boolean;
+  usedEpi: boolean;
+  notes?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db
+    .update(schema.operationMembers)
+    .set({
+      status: "completed",
+      checkOutTime: new Date(),
+      tookMeal: data.tookMeal,
+      usedEpi: data.usedEpi,
+      notes: data.notes,
+    })
+    .where(eq(schema.operationMembers.id, memberId));
+    
+  return { success: true };
+}
+
+export async function completeOperation(operationId: number, leaderId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  // Verificar se o líder é o correto
+  const [operation] = await db
+    .select()
+    .from(schema.operations)
+    .where(eq(schema.operations.id, operationId));
+    
+  if (!operation || operation.leaderId !== leaderId) {
+    throw new Error("Operação não encontrada ou líder incorreto");
+  }
+  
+  // Atualizar status
+  await db
+    .update(schema.operations)
+    .set({
+      status: "completed",
+      completedAt: new Date(),
+    })
+    .where(eq(schema.operations.id, operationId));
+    
+  return { success: true };
+}
+
+export async function createOperationIncident(data: {
+  operationId: number;
+  memberId?: number;
+  reportedBy: number;
+  incidentType: "absence" | "late_arrival" | "early_departure" | "misconduct" | "accident" | "equipment_issue" | "quality_issue" | "other";
+  severity: "low" | "medium" | "high" | "critical";
+  description: string;
+  photos?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const [result] = await db.insert(schema.operationIncidents).values(data);
+  
+  const incidentId = Number(result.insertId);
+  
+  const [incident] = await db
+    .select()
+    .from(schema.operationIncidents)
+    .where(eq(schema.operationIncidents.id, incidentId));
+    
+  return incident;
+}
+
+export async function getOperationIncidents(operationId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const incidents = await db
+    .select({
+      id: schema.operationIncidents.id,
+      memberId: schema.operationIncidents.memberId,
+      workerName: schema.workers.fullName,
+      reportedByName: schema.users.name,
+      incidentType: schema.operationIncidents.incidentType,
+      severity: schema.operationIncidents.severity,
+      description: schema.operationIncidents.description,
+      photos: schema.operationIncidents.photos,
+      status: schema.operationIncidents.status,
+      createdAt: schema.operationIncidents.createdAt,
+    })
+    .from(schema.operationIncidents)
+    .leftJoin(schema.operationMembers, eq(schema.operationIncidents.memberId, schema.operationMembers.id))
+    .leftJoin(schema.workers, eq(schema.operationMembers.workerId, schema.workers.id))
+    .leftJoin(schema.users, eq(schema.operationIncidents.reportedBy, schema.users.id))
+    .where(eq(schema.operationIncidents.operationId, operationId))
+    .orderBy(desc(schema.operationIncidents.createdAt));
+    
+  return incidents;
 }
