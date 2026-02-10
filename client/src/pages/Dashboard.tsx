@@ -248,6 +248,17 @@ export default function Dashboard() {
               </Link>
             </Card>
 
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer bg-green-50 border-green-200">
+              <Link href="/relatorios/quinzenal">
+                <CardHeader>
+                  <CardTitle className="text-base">📊 Relatório Quinzenal</CardTitle>
+                  <CardDescription>
+                    Pessoas-dia por cliente para faturamento
+                  </CardDescription>
+                </CardHeader>
+              </Link>
+            </Card>
+
             <Card className="hover:shadow-lg transition-shadow cursor-pointer bg-blue-50 border-blue-200">
               <Link href="/supervisor">
                 <CardHeader>

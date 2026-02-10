@@ -274,3 +274,15 @@
 - [ ] Exibir turnos na interface do supervisor
 - [ ] Validar que turnos não se sobrepõem
 - [ ] Permitir turnos inativos/arquivados
+
+
+## NOVA FUNCIONALIDADE - Relatório Quinzenal de Pessoas-Dia
+- [x] API backend para buscar alocações com check-ins confirmados
+- [x] Filtro por período (quinzena: 1-15 ou 16-fim do mês)
+- [x] Cálculo de pessoas-dia por cliente e turno
+- [x] Interface de relatório com seleção de mês/quinzena
+- [x] Visualização agrupada: Cliente > Turno > Lista de trabalhadores
+- [x] Totalizadores por cliente e geral
+- [x] Exportação para Excel (2 abas: Resumo e Detalhamento)
+- [x] Detalhamento: trabalhador, data, turno, local
+- [x] Testes unitários passando (3/3)

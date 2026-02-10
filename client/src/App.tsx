@@ -11,6 +11,7 @@ import Clients from "./pages/Clients";
 import Allocations from "./pages/Allocations";
 import Contracts from "./pages/Contracts";
 import Shifts from "./pages/Shifts";
+import BiweeklyReport from "./pages/BiweeklyReport";
 import Supervisor from "./pages/Supervisor";
 
 function Router() {
@@ -23,6 +24,7 @@ function Router() {
       <Route path={"/alocacoes"} component={Allocations} />
       <Route path={"/contratos"} component={Contracts} />
       <Route path={"/turnos"} component={Shifts} />
+      <Route path={"/relatorios/quinzenal"} component={BiweeklyReport} />
       <Route path={"/supervisor"} component={Supervisor} />
       <Route path={"/home"} component={Home} />
       <Route path={"/404"} component={NotFound} />

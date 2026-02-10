@@ -465,6 +465,22 @@ export const appRouter = router({
         });
       }),
   }),
+
+  // ============================================================================
+  // REPORTS (Relatórios)
+  // ============================================================================
+  reports: router({
+    // Relatório quinzenal de pessoas-dia
+    biweeklyReport: protectedProcedure
+      .input(z.object({
+        year: z.number(),
+        month: z.number().min(1).max(12),
+        period: z.enum(["first", "second"]), // primeira quinzena (1-15) ou segunda (16-fim)
+      }))
+      .query(async ({ input }) => {
+        return await db.getBiweeklyReport(input.year, input.month, input.period);
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

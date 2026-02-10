@@ -1,4 +1,4 @@
-import { eq, and, gte, lte, desc, sql, count } from "drizzle-orm";
+import { eq, and, gte, lte, desc, sql, count, or, isNotNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { 
   InsertUser, users,
@@ -640,4 +640,159 @@ export async function deleteShift(id: number) {
   return await db
     .delete(shifts)
     .where(eq(shifts.id, id));
+}
+
+
+// ============================================================================
+// REPORTS (Relatórios)
+// ============================================================================
+
+export async function getBiweeklyReport(year: number, month: number, period: "first" | "second") {
+  const db = await getDb();
+  if (!db) return { summary: [], details: [] };
+
+  // Determinar intervalo de datas
+  const startDay = period === "first" ? 1 : 16;
+  const endDay = period === "first" ? 15 : new Date(year, month, 0).getDate(); // último dia do mês
+  
+  const startDate = `${year}-${String(month).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`;
+  const endDate = `${year}-${String(month).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
+
+  // Buscar alocações confirmadas (com check-in) no período
+  const allocationsData = await db
+    .select({
+      allocationId: allocations.id,
+      workDate: sql<string>`${allocations.workDate}`,
+      workerId: allocations.workerId,
+      workerName: workers.fullName,
+      clientId: allocations.clientId,
+      clientName: clients.companyName,
+      locationId: allocations.locationId,
+      locationName: workLocations.locationName,
+      shiftId: allocations.shiftId,
+      shiftName: shifts.shiftName,
+      jobFunction: allocations.jobFunction,
+      dailyRate: allocations.dailyRate,
+      tookMeal: allocations.tookMeal,
+      mealCost: allocations.mealCost,
+      netPay: allocations.netPay,
+      status: allocations.status,
+    })
+    .from(allocations)
+    .leftJoin(workers, eq(allocations.workerId, workers.id))
+    .leftJoin(clients, eq(allocations.clientId, clients.id))
+    .leftJoin(workLocations, eq(allocations.locationId, workLocations.id))
+    .leftJoin(shifts, eq(allocations.shiftId, shifts.id))
+    .where(
+      and(
+        sql`${allocations.workDate} >= ${startDate}`,
+        sql`${allocations.workDate} <= ${endDate}`,
+        or(
+          eq(allocations.status, "completed"),
+          eq(allocations.status, "in_progress")
+        ),
+        isNotNull(allocations.checkInTime) // Apenas com check-in confirmado
+      )
+    );
+
+  // Agrupar por cliente e turno
+  const groupedData: Record<string, {
+    clientId: number;
+    clientName: string;
+    shifts: Record<string, {
+      shiftId: number | null;
+      shiftName: string;
+      personDays: number;
+      workers: Array<{
+        workerId: number;
+        workerName: string;
+        workDate: string;
+        locationName: string;
+        jobFunction: string | null;
+        dailyRate: string | null;
+        tookMeal: boolean | null;
+        mealCost: string | null;
+        netPay: string | null;
+      }>;
+    }>;
+    totalPersonDays: number;
+  }> = {};
+
+  for (const allocation of allocationsData) {
+    const clientKey = `client_${allocation.clientId}`;
+    const shiftKey = allocation.shiftId ? `shift_${allocation.shiftId}` : 'shift_none';
+    const shiftName = allocation.shiftName || 'Sem turno definido';
+    
+    if (!groupedData[clientKey]) {
+      groupedData[clientKey] = {
+        clientId: allocation.clientId,
+        clientName: allocation.clientName || 'Cliente desconhecido',
+        shifts: {},
+        totalPersonDays: 0,
+      };
+    }
+
+    if (!groupedData[clientKey].shifts[shiftKey]) {
+      groupedData[clientKey].shifts[shiftKey] = {
+        shiftId: allocation.shiftId,
+        shiftName: shiftName,
+        personDays: 0,
+        workers: [],
+      };
+    }
+
+    groupedData[clientKey].shifts[shiftKey].personDays += 1;
+    groupedData[clientKey].totalPersonDays += 1;
+    
+    groupedData[clientKey].shifts[shiftKey].workers.push({
+      workerId: allocation.workerId,
+      workerName: allocation.workerName || 'Trabalhador desconhecido',
+      workDate: allocation.workDate || '',
+      locationName: allocation.locationName || 'Local desconhecido',
+      jobFunction: allocation.jobFunction,
+      dailyRate: allocation.dailyRate,
+      tookMeal: allocation.tookMeal,
+      mealCost: allocation.mealCost,
+      netPay: allocation.netPay,
+    });
+  }
+
+  // Converter para array para facilitar uso no frontend
+  const summary = Object.values(groupedData).map(client => ({
+    clientId: client.clientId,
+    clientName: client.clientName,
+    totalPersonDays: client.totalPersonDays,
+    shifts: Object.values(client.shifts).map(shift => ({
+      shiftId: shift.shiftId,
+      shiftName: shift.shiftName,
+      personDays: shift.personDays,
+      workerCount: shift.workers.length,
+    })),
+  }));
+
+  // Detalhamento completo
+  const details = Object.values(groupedData).flatMap(client =>
+    Object.values(client.shifts).flatMap(shift =>
+      shift.workers.map(worker => ({
+        clientId: client.clientId,
+        clientName: client.clientName,
+        shiftId: shift.shiftId,
+        shiftName: shift.shiftName,
+        ...worker,
+      }))
+    )
+  );
+
+  return {
+    period: {
+      year,
+      month,
+      period,
+      startDate,
+      endDate,
+    },
+    summary,
+    details,
+    totalPersonDays: allocationsData.length,
+  };
 }
