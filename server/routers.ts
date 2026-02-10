@@ -825,6 +825,40 @@ export const appRouter = router({
         
         return await db.checkAndUnblockExpiredBlocks();
       }),
+
+    // Calcular dias consecutivos de um trabalhador em um cliente
+    getConsecutiveDays: protectedProcedure
+      .input(z.object({
+        workerId: z.number(),
+        clientId: z.number(),
+      }))
+      .query(async ({ input }) => {
+        const consecutiveDays = await db.calculateConsecutiveDays(input.workerId, input.clientId);
+        return {
+          consecutiveDays,
+          isAtRisk: consecutiveDays >= 2,
+          isCritical: consecutiveDays >= 3,
+          message: consecutiveDays >= 3
+            ? "BLOQUEADO: Limite legal excedido"
+            : consecutiveDays >= 2
+            ? "ALERTA: Próximo do limite legal (2 dias)"
+            : "OK",
+        };
+      }),
+
+    // Verificar e bloquear por continuidade
+    checkAndBlockByContinuity: protectedProcedure
+      .input(z.object({
+        workerId: z.number(),
+        clientId: z.number(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        return await db.checkAndBlockByContinuity(
+          input.workerId,
+          input.clientId,
+          ctx.user.id
+        );
+      }),
   }),
 });
 

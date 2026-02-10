@@ -506,3 +506,37 @@
 - [x] Contador de cadastros pendentes
 - [x] Integração com APIs existentes (listPending, approve, reject)
 - [ ] Notificação automática ao admin quando novo cadastro chegar
+
+
+## IMPLEMENTAÇÃO CRÍTICA - Conformidade Legal
+
+### Bloqueio Automático por Continuidade
+- [x] Função para calcular dias consecutivos de trabalho (calculateConsecutiveDays)
+- [x] Função para verificar e bloquear por continuidade (checkAndBlockByContinuity)
+- [x] APIs tRPC (getConsecutiveDays, checkAndBlockByContinuity)
+- [x] Bloqueio automático temporário (7 dias) após 3 dias consecutivos
+- [x] Mensagens de alerta (OK, ALERTA, BLOQUEADO)
+- [ ] Integração com CreateOperation (validação automática)
+- [ ] Alerta visual na interface quando trabalhador está próximo do limite
+- [ ] Notificação ao admin sobre bloqueio automático
+
+### Documentação de Autonomia
+- [ ] Tabela de recusas de trabalho
+- [ ] API para registrar recusa de trabalhador
+- [ ] Relatório de autonomia por trabalhador
+- [ ] Contagem de múltiplos clientes por trabalhador
+- [ ] Contagem de múltiplos locais por trabalhador
+- [ ] Dashboard de autonomia
+
+### Relatório de Risco Trabalhista
+- [ ] Cálculo de exposição financeira por trabalhador
+- [ ] Relatório de trabalhadores em risco alto/médio/baixo
+- [ ] Métricas de conformidade geral
+- [ ] Exportação para PDF/Excel
+- [ ] Dashboard executivo de riscos
+
+### Integração de Bloqueio com Ocorrências
+- [ ] Bloqueio automático por falta não justificada
+- [ ] Bloqueio automático por acidente sem EPI
+- [ ] Bloqueio automático por conduta inadequada
+- [ ] Webhook/trigger ao registrar ocorrência grave

@@ -1419,3 +1419,89 @@ export async function getComplianceMetrics() {
       : "100.0"
   };
 }
+
+
+// ===== BLOQUEIO POR CONTINUIDADE =====
+
+// Calcular dias consecutivos de trabalho no mesmo cliente
+export async function calculateConsecutiveDays(workerId: number, clientId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Buscar alocações dos últimos 30 dias
+  const thirtyDaysAgo = new Date(today);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const recentAllocations = await db
+    .select()
+    .from(allocations)
+    .where(
+      and(
+        eq(allocations.workerId, workerId),
+        eq(allocations.clientId, clientId),
+        gte(allocations.workDate, thirtyDaysAgo),
+        eq(allocations.status, "confirmed")
+      )
+    )
+    .orderBy(desc(allocations.workDate));
+
+  if (recentAllocations.length === 0) return 0;
+
+  // Calcular dias consecutivos a partir de hoje (ou última data)
+  let consecutiveDays = 0;
+  let currentDate = new Date(today);
+
+  for (let i = 0; i < 10; i++) {
+    const hasAllocation = recentAllocations.some((alloc: any) => {
+      const allocDate = new Date(alloc.workDate);
+      allocDate.setHours(0, 0, 0, 0);
+      return allocDate.getTime() === currentDate.getTime();
+    });
+
+    if (hasAllocation) {
+      consecutiveDays++;
+      currentDate.setDate(currentDate.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+
+  return consecutiveDays;
+}
+
+// Verificar e bloquear trabalhador por continuidade
+export async function checkAndBlockByContinuity(
+  workerId: number,
+  clientId: number,
+  userId: number
+): Promise<{ blocked: boolean; consecutiveDays: number; message: string }> {
+  const consecutiveDays = await calculateConsecutiveDays(workerId, clientId);
+
+  if (consecutiveDays >= 3) {
+    // Bloquear trabalhador temporariamente por 7 dias
+    await blockWorker({
+      workerId,
+      blockType: "temporary",
+      reason: `Bloqueio automático: ${consecutiveDays} dias consecutivos no mesmo cliente (limite legal: 2 dias). Risco trabalhista alto.`,
+      blockedBy: userId,
+      daysBlocked: 7,
+    });
+
+    return {
+      blocked: true,
+      consecutiveDays,
+      message: `Trabalhador bloqueado automaticamente por ${consecutiveDays} dias consecutivos`,
+    };
+  }
+
+  return {
+    blocked: false,
+    consecutiveDays,
+    message: consecutiveDays >= 2
+      ? `ALERTA: Trabalhador próximo do limite (${consecutiveDays} dias consecutivos)`
+      : "OK",
+  };
+}
