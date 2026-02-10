@@ -440,3 +440,20 @@
   - [x] Integração com API
 - [ ] ETAPA 2 completa (check-in/out, ocorrências)
 - [ ] ETAPA 3 completa (notificações, melhorias)
+
+
+## PÁGINA DE DETALHES DA OPERAÇÃO PARA O LÍDER
+- [x] Criar página /lider/operacao/:id
+- [x] Exibir informações da operação (cliente, local, data, turno)
+- [x] Listar todos os membros da equipe com status de aceite
+- [x] Botões de check-in individual por trabalhador
+- [x] Botões de check-out individual por trabalhador
+- [x] Formulário de registro de ocorrências com 8 tipos
+- [x] Upload de fotos para ocorrências (integrado com S3)
+- [x] Controle de consumo de marmita por trabalhador (checkboxes antes do check-out)
+- [x] Controle de consumo de EPI por trabalhador (checkboxes antes do check-out)
+- [x] Botão para iniciar operação (quando status = accepted)
+- [x] Botão para completar operação (quando status = in_progress)
+- [x] Listagem de ocorrências registradas com fotos
+- [x] Badges de status visual
+- [x] Interface mobile-friendly e responsiva
