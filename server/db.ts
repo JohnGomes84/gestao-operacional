@@ -21,7 +21,9 @@ import {
   operations, InsertOperation,
   operationMembers, InsertOperationMember,
   operationIncidents, InsertOperationIncident,
-  workerBlockHistory
+  workerBlockHistory,
+  workerRefusals, InsertWorkerRefusal,
+  workerAutonomyMetrics, InsertWorkerAutonomyMetrics
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1504,4 +1506,220 @@ export async function checkAndBlockByContinuity(
       ? `ALERTA: Trabalhador próximo do limite (${consecutiveDays} dias consecutivos)`
       : "OK",
   };
+}
+
+
+// ============================================================================
+// DOCUMENTAÇÃO DE AUTONOMIA
+// ============================================================================
+
+/**
+ * Registrar recusa de trabalho por um trabalhador
+ */
+export async function createWorkerRefusal(data: {
+  workerId: number;
+  operationId?: number;
+  clientId?: number;
+  refusalReason: string;
+  refusalType: "scheduling_conflict" | "distance" | "rate_too_low" | "personal_reasons" | "already_working" | "other";
+  refusalDate: Date;
+  evidence?: string;
+  registeredBy: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const [result] = await db.insert(workerRefusals).values({
+    workerId: data.workerId,
+    operationId: data.operationId || null,
+    clientId: data.clientId || null,
+    refusalReason: data.refusalReason,
+    refusalType: data.refusalType,
+    refusalDate: data.refusalDate,
+    evidence: data.evidence || null,
+    registeredBy: data.registeredBy,
+  });
+
+  // Atualizar métricas de autonomia
+  await updateWorkerAutonomyMetrics(data.workerId);
+
+  return { id: result.insertId, message: "Recusa registrada com sucesso" };
+}
+
+/**
+ * Listar recusas de um trabalhador
+ */
+export async function getWorkerRefusals(workerId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db
+    .select({
+      id: workerRefusals.id,
+      refusalReason: workerRefusals.refusalReason,
+      refusalType: workerRefusals.refusalType,
+      refusalDate: workerRefusals.refusalDate,
+      evidence: workerRefusals.evidence,
+      createdAt: workerRefusals.createdAt,
+      clientName: clients.companyName,
+      operationName: operations.operationName,
+    })
+    .from(workerRefusals)
+    .leftJoin(clients, eq(workerRefusals.clientId, clients.id))
+    .leftJoin(operations, eq(workerRefusals.operationId, operations.id))
+    .where(eq(workerRefusals.workerId, workerId))
+    .orderBy(desc(workerRefusals.refusalDate));
+}
+
+/**
+ * Calcular e atualizar métricas de autonomia de um trabalhador
+ */
+export async function updateWorkerAutonomyMetrics(workerId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Contar recusas
+  const refusalsCount = await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(workerRefusals)
+    .where(eq(workerRefusals.workerId, workerId));
+  
+  const totalRefusals = refusalsCount[0]?.count || 0;
+
+  // Contar clientes únicos (através de operations)
+  const uniqueClientsCount = await db
+    .select({ count: sql<number>`COUNT(DISTINCT ${operations.clientId})` })
+    .from(operationMembers)
+    .innerJoin(operations, eq(operationMembers.operationId, operations.id))
+    .where(eq(operationMembers.workerId, workerId));
+  
+  const uniqueClients = uniqueClientsCount[0]?.count || 0;
+
+  // Contar locais únicos (através de operations)
+  const uniqueLocationsCount = await db
+    .select({ count: sql<number>`COUNT(DISTINCT ${operations.locationId})` })
+    .from(operationMembers)
+    .innerJoin(operations, eq(operationMembers.operationId, operations.id))
+    .where(eq(operationMembers.workerId, workerId));
+  
+  const uniqueLocations = uniqueLocationsCount[0]?.count || 0;
+
+  // Contar operações totais
+  const operationsCount = await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(operationMembers)
+    .where(eq(operationMembers.workerId, workerId));
+  
+  const totalOperations = operationsCount[0]?.count || 0;
+
+  // Buscar datas de primeira e última operação
+  const operationDates = await db
+    .select({
+      firstDate: sql<Date>`MIN(${operations.workDate})`,
+      lastDate: sql<Date>`MAX(${operations.workDate})`,
+    })
+    .from(operationMembers)
+    .innerJoin(operations, eq(operationMembers.operationId, operations.id))
+    .where(eq(operationMembers.workerId, workerId));
+
+  const firstOperationDate = operationDates[0]?.firstDate || null;
+  const lastOperationDate = operationDates[0]?.lastDate || null;
+
+  // Calcular score de autonomia (0-100)
+  // Fatores: recusas (30%), clientes únicos (30%), locais únicos (20%), operações totais (20%)
+  const refusalsScore = Math.min(totalRefusals * 10, 30); // Máximo 30 pontos
+  const clientsScore = Math.min(uniqueClients * 10, 30); // Máximo 30 pontos
+  const locationsScore = Math.min(uniqueLocations * 5, 20); // Máximo 20 pontos
+  const operationsScore = Math.min(totalOperations * 2, 20); // Máximo 20 pontos
+  
+  const autonomyScore = Math.min(
+    refusalsScore + clientsScore + locationsScore + operationsScore,
+    100
+  );
+
+  // Verificar se já existe registro
+  const existing = await db
+    .select()
+    .from(workerAutonomyMetrics)
+    .where(eq(workerAutonomyMetrics.workerId, workerId))
+    .limit(1);
+
+  if (existing.length > 0) {
+    // Atualizar
+    await db
+      .update(workerAutonomyMetrics)
+      .set({
+        totalRefusals,
+        uniqueClients,
+        uniqueLocations,
+        totalOperations,
+        firstOperationDate,
+        lastOperationDate,
+        autonomyScore,
+        lastCalculatedAt: new Date(),
+      })
+      .where(eq(workerAutonomyMetrics.workerId, workerId));
+  } else {
+    // Inserir
+    await db.insert(workerAutonomyMetrics).values({
+      workerId,
+      totalRefusals,
+      uniqueClients,
+      uniqueLocations,
+      totalOperations,
+      firstOperationDate,
+      lastOperationDate,
+      autonomyScore,
+      lastCalculatedAt: new Date(),
+    });
+  }
+
+  return {
+    totalRefusals,
+    uniqueClients,
+    uniqueLocations,
+    totalOperations,
+    autonomyScore,
+  };
+}
+
+/**
+ * Obter métricas de autonomia de um trabalhador
+ */
+export async function getWorkerAutonomyMetrics(workerId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const metrics = await db
+    .select()
+    .from(workerAutonomyMetrics)
+    .where(eq(workerAutonomyMetrics.workerId, workerId))
+    .limit(1);
+
+  return metrics[0] || null;
+}
+
+/**
+ * Listar trabalhadores com baixa autonomia (score < 30)
+ */
+export async function getWorkersWithLowAutonomy() {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db
+    .select({
+      workerId: workerAutonomyMetrics.workerId,
+      workerName: workers.fullName,
+      workerCpf: workers.cpf,
+      totalRefusals: workerAutonomyMetrics.totalRefusals,
+      uniqueClients: workerAutonomyMetrics.uniqueClients,
+      uniqueLocations: workerAutonomyMetrics.uniqueLocations,
+      totalOperations: workerAutonomyMetrics.totalOperations,
+      autonomyScore: workerAutonomyMetrics.autonomyScore,
+      lastCalculatedAt: workerAutonomyMetrics.lastCalculatedAt,
+    })
+    .from(workerAutonomyMetrics)
+    .innerJoin(workers, eq(workerAutonomyMetrics.workerId, workers.id))
+    .where(lt(workerAutonomyMetrics.autonomyScore, 30))
+    .orderBy(workerAutonomyMetrics.autonomyScore);
 }

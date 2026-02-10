@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
+import { useEffect } from "react";
 import { Plus, Trash2, Users } from "lucide-react";
 
 export default function CreateOperation() {
@@ -29,8 +30,45 @@ export default function CreateOperation() {
     dailyRate: string;
   }>>([]);
 
+  const [workerContinuityStatus, setWorkerContinuityStatus] = useState<Record<number, {
+    consecutiveDays: number;
+    isAtRisk: boolean;
+    isCritical: boolean;
+    message: string;
+  }>>({});
+
   const { data: clients } = trpc.clients.list.useQuery();
   const { data: allWorkers } = trpc.workers.list.useQuery();
+  
+  // Buscar status de continuidade quando cliente for selecionado
+  const clientIdNum = formData.clientId ? parseInt(formData.clientId) : null;
+  
+  useEffect(() => {
+    if (!clientIdNum || !allWorkers) {
+      setWorkerContinuityStatus({});
+      return;
+    }
+    
+    // Buscar status para cada trabalhador
+    const statuses: Record<number, any> = {};
+    let completed = 0;
+    
+    allWorkers.forEach((worker) => {
+      // Fazer chamada individual para cada trabalhador
+      fetch(`/api/trpc/compliance.getConsecutiveDays?input=${encodeURIComponent(JSON.stringify({ workerId: worker.id, clientId: clientIdNum }))}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.result?.data) {
+            statuses[worker.id] = data.result.data;
+          }
+          completed++;
+          if (completed === allWorkers.length) {
+            setWorkerContinuityStatus(statuses);
+          }
+        })
+        .catch(err => console.error(`Erro ao buscar status de ${worker.fullName}:`, err));
+    });
+  }, [clientIdNum, allWorkers]);
   // Filtrar trabalhadores bloqueados
   const workers = allWorkers?.filter(w => !w.isBlocked) || [];
   // Buscar líderes através de uma query específica ou filtrar localmente
@@ -310,11 +348,26 @@ export default function CreateOperation() {
                           <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
                         <SelectContent>
-                          {workers?.map((worker) => (
-                            <SelectItem key={worker.id} value={worker.id.toString()}>
-                              {worker.fullName} - {worker.cpf}
-                            </SelectItem>
-                          ))}
+                          {workers?.map((worker) => {
+                            const status = workerContinuityStatus[worker.id];
+                            return (
+                              <SelectItem key={worker.id} value={worker.id.toString()}>
+                                <div className="flex items-center gap-2">
+                                  <span>{worker.fullName} - {worker.cpf}</span>
+                                  {status && status.isCritical && (
+                                    <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded font-semibold">
+                                      BLOQUEADO
+                                    </span>
+                                  )}
+                                  {status && status.isAtRisk && !status.isCritical && (
+                                    <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded font-semibold">
+                                      ALERTA: {status.consecutiveDays} dias
+                                    </span>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            );
+                          })}
                         </SelectContent>
                       </Select>
                     </div>

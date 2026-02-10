@@ -540,3 +540,42 @@
 - [ ] Bloqueio automático por acidente sem EPI
 - [ ] Bloqueio automático por conduta inadequada
 - [ ] Webhook/trigger ao registrar ocorrência grave
+
+
+## PASSOS CRÍTICOS - Implementação Imediata
+
+### Passo 1: Integração de Validação de Continuidade
+- [x] Adicionar chamada a getConsecutiveDays em CreateOperation
+- [x] Mostrar badge de status ao lado do nome do trabalhador
+- [x] Badge vermelho "BLOQUEADO" para 3+ dias
+- [x] Badge amarelo "ALERTA: X dias" para 2 dias
+- [x] Impedir adição de trabalhadores bloqueados (filtro já existente)
+
+### Passo 2: Sistema de Documentação de Autonomia
+- [x] Criar tabela workerRefusals no schema (10 campos)
+- [x] Criar tabela workerAutonomyMetrics no schema (11 campos)
+- [x] Funções de banco de dados (5 funções)
+  - [x] createWorkerRefusal
+  - [x] getWorkerRefusals
+  - [x] updateWorkerAutonomyMetrics (cálculo automático)
+  - [x] getWorkerAutonomyMetrics
+  - [x] getWorkersWithLowAutonomy
+- [x] APIs tRPC (5 endpoints)
+  - [x] registerRefusal
+  - [x] getWorkerRefusals
+  - [x] getWorkerAutonomy
+  - [x] updateWorkerAutonomy
+  - [x] getLowAutonomyWorkers (admin only)
+- [x] Cálculo de score de autonomia (0-100)
+- [x] Contagem de múltiplos clientes por trabalhador
+- [x] Contagem de múltiplos locais por trabalhador
+- [ ] Interface para admin registrar recusas
+- [ ] Relatório visual de autonomia por trabalhador
+
+### Passo 3: Relatório Executivo de Risco Trabalhista
+- [ ] Página /riscos com dashboard executivo
+- [ ] Cálculo de exposição financeira (dias × diária)
+- [ ] Listagem de trabalhadores em risco alto/médio/baixo
+- [ ] Exportação para PDF
+- [ ] Métricas de conformidade geral
+- [ ] Gráficos de distribuição de risco

@@ -718,3 +718,72 @@ export const workerBlockHistory = mysqlTable("workerBlockHistory", {
 
 export type WorkerBlockHistory = typeof workerBlockHistory.$inferSelect;
 export type InsertWorkerBlockHistory = typeof workerBlockHistory.$inferInsert;
+
+
+// ============================================================================
+// DOCUMENTAÇÃO DE AUTONOMIA
+// ============================================================================
+
+// Registro de recusas de trabalho (comprova autonomia)
+export const workerRefusals = mysqlTable("workerRefusals", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  // Relacionamentos
+  workerId: int("workerId").references(() => workers.id).notNull(),
+  operationId: int("operationId").references(() => operations.id),
+  clientId: int("clientId").references(() => clients.id),
+  
+  // Detalhes da recusa
+  refusalReason: text("refusalReason").notNull(),
+  refusalDate: timestamp("refusalDate").notNull(),
+  
+  // Tipo de recusa
+  refusalType: mysqlEnum("refusalType", [
+    "scheduling_conflict", // Conflito de agenda
+    "distance", // Distância/localização
+    "rate_too_low", // Valor baixo
+    "personal_reasons", // Motivos pessoais
+    "already_working", // Já trabalhando em outro local
+    "other" // Outros
+  ]).notNull(),
+  
+  // Evidências (opcional)
+  evidence: text("evidence"), // URL de documento/print
+  
+  // Quem registrou
+  registeredBy: int("registeredBy").references(() => users.id).notNull(),
+  
+  // Metadados
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type WorkerRefusal = typeof workerRefusals.$inferSelect;
+export type InsertWorkerRefusal = typeof workerRefusals.$inferInsert;
+
+// Métricas de autonomia por trabalhador (cache calculado)
+export const workerAutonomyMetrics = mysqlTable("workerAutonomyMetrics", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  // Relacionamento
+  workerId: int("workerId").references(() => workers.id).notNull().unique(),
+  
+  // Métricas de autonomia
+  totalRefusals: int("totalRefusals").default(0).notNull(), // Total de recusas
+  uniqueClients: int("uniqueClients").default(0).notNull(), // Número de clientes diferentes
+  uniqueLocations: int("uniqueLocations").default(0).notNull(), // Número de locais diferentes
+  totalOperations: int("totalOperations").default(0).notNull(), // Total de operações
+  
+  // Datas de referência
+  firstOperationDate: timestamp("firstOperationDate"),
+  lastOperationDate: timestamp("lastOperationDate"),
+  
+  // Score de autonomia (0-100)
+  autonomyScore: int("autonomyScore").default(0).notNull(),
+  
+  // Metadados
+  lastCalculatedAt: timestamp("lastCalculatedAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type WorkerAutonomyMetrics = typeof workerAutonomyMetrics.$inferSelect;
+export type InsertWorkerAutonomyMetrics = typeof workerAutonomyMetrics.$inferInsert;

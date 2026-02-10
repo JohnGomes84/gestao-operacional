@@ -859,6 +859,55 @@ export const appRouter = router({
           ctx.user.id
         );
       }),
+
+    // Registrar recusa de trabalho
+    registerRefusal: protectedProcedure
+      .input(z.object({
+        workerId: z.number(),
+        operationId: z.number().optional(),
+        clientId: z.number().optional(),
+        refusalReason: z.string(),
+        refusalType: z.enum(["scheduling_conflict", "distance", "rate_too_low", "personal_reasons", "already_working", "other"]),
+        refusalDate: z.string(),
+        evidence: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        return await db.createWorkerRefusal({
+          ...input,
+          refusalDate: new Date(input.refusalDate),
+          registeredBy: ctx.user.id,
+        });
+      }),
+
+    // Listar recusas de um trabalhador
+    getWorkerRefusals: protectedProcedure
+      .input(z.object({ workerId: z.number() }))
+      .query(async ({ input }) => {
+        return await db.getWorkerRefusals(input.workerId);
+      }),
+
+    // Obter métricas de autonomia de um trabalhador
+    getWorkerAutonomy: protectedProcedure
+      .input(z.object({ workerId: z.number() }))
+      .query(async ({ input }) => {
+        return await db.getWorkerAutonomyMetrics(input.workerId);
+      }),
+
+    // Atualizar métricas de autonomia
+    updateWorkerAutonomy: protectedProcedure
+      .input(z.object({ workerId: z.number() }))
+      .mutation(async ({ input }) => {
+        return await db.updateWorkerAutonomyMetrics(input.workerId);
+      }),
+
+    // Listar trabalhadores com baixa autonomia (admin only)
+    getLowAutonomyWorkers: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        return await db.getWorkersWithLowAutonomy();
+      }),
   }),
 });
 
