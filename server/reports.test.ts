@@ -54,12 +54,13 @@ describe("Biweekly Report", () => {
       });
     testClientId = Number((Array.isArray(clientResult) ? clientResult[0] : clientResult).insertId);
 
-    // Create test worker
+    // Create test worker with unique CPF
+    const uniqueCpf = `999${Date.now().toString().slice(-8)}`;
     const workerResult = await db
       .insert(workers)
       .values({
         fullName: "Test Worker Report",
-        cpf: "12345678901",
+        cpf: uniqueCpf,
         phone: "11999999999",
         workerType: "daily",
         status: "active",
@@ -197,5 +198,34 @@ describe("Biweekly Report", () => {
     expect(report.summary.length).toBe(0);
     expect(report.details.length).toBe(0);
     expect(report.totalPersonDays).toBe(0);
+  });
+
+  it("should filter report by specific client", async () => {
+    const ctx = createTestContext();
+    const caller = appRouter.createCaller(ctx);
+
+    const currentDate = new Date();
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth() + 1;
+
+    // Query with specific client filter
+    const report = await caller.reports.biweeklyReport({
+      year,
+      month,
+      period: "first",
+      clientId: testClientId,
+    });
+
+    expect(report).toBeDefined();
+    expect(report.summary.length).toBeGreaterThan(0);
+    
+    // All results should be for the filtered client
+    for (const client of report.summary) {
+      expect(client.clientId).toBe(testClientId);
+    }
+    
+    for (const detail of report.details) {
+      expect(detail.clientId).toBe(testClientId);
+    }
   });
 });

@@ -647,7 +647,7 @@ export async function deleteShift(id: number) {
 // REPORTS (Relatórios)
 // ============================================================================
 
-export async function getBiweeklyReport(year: number, month: number, period: "first" | "second") {
+export async function getBiweeklyReport(year: number, month: number, period: "first" | "second", clientId?: number) {
   const db = await getDb();
   if (!db) return { summary: [], details: [] };
 
@@ -691,7 +691,8 @@ export async function getBiweeklyReport(year: number, month: number, period: "fi
           eq(allocations.status, "completed"),
           eq(allocations.status, "in_progress")
         ),
-        isNotNull(allocations.checkInTime) // Apenas com check-in confirmado
+        isNotNull(allocations.checkInTime), // Apenas com check-in confirmado
+        clientId ? eq(allocations.clientId, clientId) : sql`1=1` // Filtro opcional por cliente
       )
     );
 

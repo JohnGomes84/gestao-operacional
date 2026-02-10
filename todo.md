@@ -286,3 +286,10 @@
 - [x] Exportação para Excel (2 abas: Resumo e Detalhamento)
 - [x] Detalhamento: trabalhador, data, turno, local
 - [x] Testes unitários passando (3/3)
+
+## APRIMORAMENTO - Filtro de Cliente no Relatório Quinzenal
+- [x] Atualizar API backend para aceitar clientId opcional
+- [x] Adicionar dropdown de seleção de cliente no frontend
+- [x] Opção "Todos os clientes" como padrão
+- [x] Filtrar dados quando cliente específico for selecionado
+- [x] Testes unitários passando (4/4)

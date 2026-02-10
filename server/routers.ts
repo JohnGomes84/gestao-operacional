@@ -476,9 +476,10 @@ export const appRouter = router({
         year: z.number(),
         month: z.number().min(1).max(12),
         period: z.enum(["first", "second"]), // primeira quinzena (1-15) ou segunda (16-fim)
+        clientId: z.number().optional(), // filtro opcional por cliente
       }))
       .query(async ({ input }) => {
-        return await db.getBiweeklyReport(input.year, input.month, input.period);
+        return await db.getBiweeklyReport(input.year, input.month, input.period, input.clientId);
       }),
   }),
 });

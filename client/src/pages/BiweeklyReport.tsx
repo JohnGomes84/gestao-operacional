@@ -13,11 +13,16 @@ export default function BiweeklyReport() {
   const [year, setYear] = useState(currentDate.getFullYear());
   const [month, setMonth] = useState(currentDate.getMonth() + 1);
   const [period, setPeriod] = useState<"first" | "second">("first");
+  const [clientId, setClientId] = useState<number | undefined>(undefined);
+
+  // Buscar lista de clientes
+  const { data: clientsList } = trpc.clients.list.useQuery();
 
   const { data: reportData, isLoading, refetch } = trpc.reports.biweeklyReport.useQuery({
     year,
     month,
     period,
+    clientId,
   });
 
   const handleExport = () => {
@@ -91,7 +96,30 @@ export default function BiweeklyReport() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              {/* Cliente */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-2 block">
+                  Cliente
+                </label>
+                <Select 
+                  value={clientId?.toString() || "all"} 
+                  onValueChange={(v) => setClientId(v === "all" ? undefined : parseInt(v))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os clientes</SelectItem>
+                    {clientsList?.map((client) => (
+                      <SelectItem key={client.id} value={client.id.toString()}>
+                        {client.companyName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Ano */}
               <div>
                 <label className="text-sm font-medium text-slate-700 mb-2 block">
