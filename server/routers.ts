@@ -488,6 +488,30 @@ export const appRouter = router({
   // WORKER REGISTRATION (Cadastro público de trabalhadores)
   // ============================================================================
   workerRegistration: router({
+    // Upload de documento (público)
+    uploadDocument: publicProcedure
+      .input(z.object({
+        fileName: z.string(),
+        fileData: z.string(), // base64
+        mimeType: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        const { storagePut } = await import("./storage");
+        
+        // Converter base64 para buffer
+        const base64Data = input.fileData.split(',')[1] || input.fileData;
+        const buffer = Buffer.from(base64Data, 'base64');
+        
+        // Upload para S3
+        const { url } = await storagePut(
+          `worker-docs/${input.fileName}`,
+          buffer,
+          input.mimeType
+        );
+        
+        return { url };
+      }),
+    
     // Cadastro público - sem autenticação
     register: publicProcedure
       .input(z.object({

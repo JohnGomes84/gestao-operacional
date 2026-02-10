@@ -10,9 +10,10 @@ import Workers from "./pages/Workers";
 import Clients from "./pages/Clients";
 import Allocations from "./pages/Allocations";
 import Contracts from "./pages/Contracts";
-import Shifts from "./pages/Shifts";
-import BiweeklyReport from "./pages/BiweeklyReport";
 import Supervisor from "./pages/Supervisor";
+import BiweeklyReport from "./pages/BiweeklyReport";
+import WorkerRegistrationForm from "./pages/WorkerRegistrationForm";
+import Shifts from "./pages/Shifts";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -26,6 +27,7 @@ function Router() {
       <Route path={"/turnos"} component={Shifts} />
       <Route path={"/relatorios/quinzenal"} component={BiweeklyReport} />
       <Route path={"/supervisor"} component={Supervisor} />
+      <Route path={"/cadastro-trabalhador"} component={WorkerRegistrationForm} />
       <Route path={"/home"} component={Home} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}

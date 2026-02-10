@@ -323,12 +323,19 @@
   - [x] approveWorkerRegistration
   - [x] rejectWorkerRegistration
 
-### Frontend Pendente:
-- [ ] Formulário público de cadastro via link
-  - [ ] Upload de documento com foto para S3
-  - [ ] Validação de chave PIX em tempo real
-  - [ ] Campos de endereço completo
-  - [ ] Validação de CPF no frontend
+### Frontend Implementado:
+- [x] Formulário público de cadastro via link
+  - [x] Upload de documento com foto para S3 via API
+  - [x] Validação de chave PIX (5 tipos suportados)
+  - [x] Campos de endereço completo (7 campos)
+  - [x] Validação de CPF no frontend com formatação automática
+  - [x] Validação de idade ≥18 anos com cálculo preciso
+  - [x] Mensagem de sucesso/erro com feedback visual
+  - [x] Rota pública /cadastro-trabalhador (sem autenticação)
+  - [x] Preview de imagem antes do upload
+  - [x] Validação de tamanho de arquivo (max 5MB)
+  - [x] Seleção de tipo de documento (RG/CNH/RNE)
+  - [x] Seleção de tipo de contrato (Diarista/Freelancer/MEI/CLT)
 - [ ] Painel administrativo de aprovação
   - [ ] Lista de cadastros pendentes
   - [ ] Visualização de documentos
