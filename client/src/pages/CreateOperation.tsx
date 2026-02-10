@@ -30,7 +30,9 @@ export default function CreateOperation() {
   }>>([]);
 
   const { data: clients } = trpc.clients.list.useQuery();
-  const { data: workers } = trpc.workers.list.useQuery();
+  const { data: allWorkers } = trpc.workers.list.useQuery();
+  // Filtrar trabalhadores bloqueados
+  const workers = allWorkers?.filter(w => !w.isBlocked) || [];
   // Buscar líderes através de uma query específica ou filtrar localmente
   // Por enquanto, vamos criar um campo manual para o líder
   const { data: shifts } = trpc.shifts.list.useQuery();

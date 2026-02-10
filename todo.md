@@ -457,3 +457,34 @@
 - [x] Listagem de ocorrências registradas com fotos
 - [x] Badges de status visual
 - [x] Interface mobile-friendly e responsiva
+
+
+## SISTEMA DE CONTROLE DE CONFORMIDADE
+### Bloqueio Automático de Trabalhadores
+- [ ] Atualizar schema de trabalhadores com campos de bloqueio
+  - [ ] isBlocked (boolean)
+  - [ ] blockReason (texto)
+  - [ ] blockedAt (timestamp)
+  - [ ] blockedBy (userId)
+  - [ ] blockType (temporary/permanent)
+  - [ ] blockExpiresAt (timestamp, para bloqueios temporários)
+- [ ] Criar tabela workerBlockHistory para histórico
+  - [ ] workerId, action (blocked/unblocked), reason, timestamp, userId
+- [ ] Lógica automática de bloqueio baseada em ocorrências
+  - [ ] Falta não justificada → Bloqueio 3 dias
+  - [ ] 3+ atrasos → Bloqueio 7 dias
+  - [ ] Conduta inadequada → Bloqueio permanente
+  - [ ] Acidente sem EPI → Bloqueio até revisão
+- [ ] Interface administrativa de gestão de bloqueios
+  - [ ] Lista de trabalhadores bloqueados
+  - [ ] Visualização de motivo e histórico
+  - [ ] Formulário de desbloqueio com justificativa obrigatória
+  - [ ] Histórico completo de bloqueios/desbloqueios
+- [ ] Validação na criação de operações
+  - [ ] Não permitir seleção de trabalhadores bloqueados
+  - [ ] Mensagem clara indicando motivo do bloqueio
+- [ ] Dashboard de conformidade
+  - [ ] Total de trabalhadores bloqueados
+  - [ ] Bloqueios por tipo
+  - [ ] Ocorrências por tipo
+  - [ ] Taxa de conformidade

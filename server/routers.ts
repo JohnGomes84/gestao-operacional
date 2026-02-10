@@ -756,6 +756,76 @@ export const appRouter = router({
       }),
   }),
 
+  // ============================================================================
+  // CONTROLE DE CONFORMIDADE
+  // ============================================================================
+  
+  compliance: router({
+    // Listar trabalhadores bloqueados
+    listBlocked: protectedProcedure
+      .query(async () => {
+        return await db.getBlockedWorkers();
+      }),
+    
+    // Obter histórico de bloqueios de um trabalhador
+    getHistory: protectedProcedure
+      .input(z.object({ workerId: z.number() }))
+      .query(async ({ input }) => {
+        return await db.getWorkerBlockHistory(input.workerId);
+      }),
+    
+    // Bloquear trabalhador manualmente
+    blockWorker: protectedProcedure
+      .input(z.object({
+        workerId: z.number(),
+        reason: z.string(),
+        blockType: z.enum(["temporary", "permanent"]),
+        daysBlocked: z.number().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Apenas administradores podem bloquear trabalhadores" });
+        }
+        
+        return await db.blockWorker({
+          ...input,
+          blockedBy: ctx.user.id,
+        });
+      }),
+    
+    // Desbloquear trabalhador
+    unblockWorker: protectedProcedure
+      .input(z.object({
+        workerId: z.number(),
+        reason: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Apenas administradores podem desbloquear trabalhadores" });
+        }
+        
+        return await db.unblockWorker({
+          ...input,
+          unblockedBy: ctx.user.id,
+        });
+      }),
+    
+    // Obter métricas de conformidade
+    getMetrics: protectedProcedure
+      .query(async () => {
+        return await db.getComplianceMetrics();
+      }),
+    
+    // Verificar e desbloquear bloqueios expirados (cron job)
+    checkExpiredBlocks: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+        
+        return await db.checkAndUnblockExpiredBlocks();
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

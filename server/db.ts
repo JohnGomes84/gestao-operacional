@@ -1,4 +1,4 @@
-import { eq, and, gte, lte, desc, sql, count, or, isNotNull } from "drizzle-orm";
+import { eq, and, gte, lte, lt, desc, sql, count, or, isNotNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import * as schema from "../drizzle/schema";
 import { 
@@ -20,7 +20,8 @@ import {
   procedureReadLogs, InsertProcedureReadLog,
   operations, InsertOperation,
   operationMembers, InsertOperationMember,
-  operationIncidents, InsertOperationIncident
+  operationIncidents, InsertOperationIncident,
+  workerBlockHistory
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1203,4 +1204,218 @@ export async function getOperationIncidents(operationId: number) {
     .orderBy(desc(schema.operationIncidents.createdAt));
     
   return incidents;
+}
+
+
+// ============================================================================
+// CONTROLE DE CONFORMIDADE E BLOQUEIOS
+// ============================================================================
+
+export async function blockWorker(params: {
+  workerId: number;
+  reason: string;
+  blockedBy: number;
+  blockType: "temporary" | "permanent";
+  daysBlocked?: number; // Para bloqueios temporários
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { workerId, reason, blockedBy, blockType, daysBlocked } = params;
+  
+  const expiresAt = blockType === "temporary" && daysBlocked
+    ? new Date(Date.now() + daysBlocked * 24 * 60 * 60 * 1000)
+    : null;
+  
+  // Atualizar trabalhador
+  await db.update(workers)
+    .set({
+      isBlocked: true,
+      blockReason: reason,
+      blockedAt: new Date(),
+      blockedBy,
+      blockType,
+      blockExpiresAt: expiresAt,
+      status: "blocked",
+    })
+    .where(eq(workers.id, workerId));
+  
+  // Registrar no histórico
+  await db.insert(workerBlockHistory).values({
+    workerId,
+    actionBy: blockedBy,
+    action: "blocked",
+    reason,
+    blockType,
+    expiresAt,
+  });
+  
+  return { success: true };
+}
+
+export async function unblockWorker(params: {
+  workerId: number;
+  reason: string;
+  unblockedBy: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { workerId, reason, unblockedBy } = params;
+  
+  // Atualizar trabalhador
+  await db.update(workers)
+    .set({
+      isBlocked: false,
+      blockReason: null,
+      blockedAt: null,
+      blockedBy: null,
+      blockType: null,
+      blockExpiresAt: null,
+      status: "active",
+    })
+    .where(eq(workers.id, workerId));
+  
+  // Registrar no histórico
+  await db.insert(workerBlockHistory).values({
+    workerId,
+    actionBy: unblockedBy,
+    action: "unblocked",
+    reason,
+  });
+  
+  return { success: true };
+}
+
+export async function getBlockedWorkers() {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return await db.select().from(workers).where(eq(workers.isBlocked, true));
+}
+
+export async function getWorkerBlockHistory(workerId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return await db.select()
+    .from(workerBlockHistory)
+    .where(eq(workerBlockHistory.workerId, workerId))
+    .orderBy(desc(workerBlockHistory.createdAt));
+}
+
+export async function checkAndUnblockExpiredBlocks() {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const now = new Date();
+  
+  // Buscar trabalhadores com bloqueio temporário expirado
+  const expiredBlocks = await db.select()
+    .from(workers)
+    .where(
+      and(
+        eq(workers.isBlocked, true),
+        eq(workers.blockType, "temporary"),
+        lt(workers.blockExpiresAt, now)
+      )
+    );
+  
+  // Desbloquear automaticamente
+  for (const worker of expiredBlocks) {
+    await db.update(workers)
+      .set({
+        isBlocked: false,
+        blockReason: null,
+        blockedAt: null,
+        blockedBy: null,
+        blockType: null,
+        blockExpiresAt: null,
+        status: "active",
+      })
+      .where(eq(workers.id, worker.id));
+    
+    // Registrar no histórico
+    await db.insert(workerBlockHistory).values({
+      workerId: worker.id,
+      actionBy: 1, // Sistema
+      action: "unblocked",
+      reason: "Bloqueio temporário expirado automaticamente",
+    });
+  }
+  
+  return { unblocked: expiredBlocks.length };
+}
+
+export async function autoBlockBasedOnIncident(params: {
+  workerId: number;
+  incidentType: string;
+  blockedBy: number;
+}) {
+  const { workerId, incidentType, blockedBy } = params;
+  
+  // Regras de bloqueio automático
+  const blockRules: Record<string, { type: "temporary" | "permanent", days?: number, reason: string }> = {
+    absence: {
+      type: "temporary",
+      days: 3,
+      reason: "Falta não justificada - Bloqueio automático de 3 dias"
+    },
+    misconduct: {
+      type: "permanent",
+      reason: "Conduta inadequada - Bloqueio permanente até revisão administrativa"
+    },
+    accident: {
+      type: "permanent",
+      reason: "Acidente registrado - Bloqueio até investigação e treinamento"
+    },
+  };
+  
+  const rule = blockRules[incidentType];
+  if (!rule) return { blocked: false };
+  
+  await blockWorker({
+    workerId,
+    reason: rule.reason,
+    blockedBy,
+    blockType: rule.type,
+    daysBlocked: rule.days,
+  });
+  
+  return { blocked: true, rule };
+}
+
+export async function getComplianceMetrics() {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const totalWorkers = await db.select({ count: sql<number>`count(*)` })
+    .from(workers)
+    .where(eq(workers.registrationStatus, "approved"));
+  
+  const blockedWorkers = await db.select({ count: sql<number>`count(*)` })
+    .from(workers)
+    .where(and(
+      eq(workers.isBlocked, true),
+      eq(workers.registrationStatus, "approved")
+    ));
+  
+  const temporaryBlocks = await db.select({ count: sql<number>`count(*)` })
+    .from(workers)
+    .where(and(
+      eq(workers.isBlocked, true),
+      eq(workers.blockType, "temporary")
+    ));
+  
+  const permanentBlocks = await db.select({ count: sql<number>`count(*)` })
+    .from(workers)
+    .where(and(
+      eq(workers.isBlocked, true),
+      eq(workers.blockType, "permanent")
+    ));
+  
+  return {
+    totalWorkers: totalWorkers[0]?.count || 0,
+    blockedWorkers: blockedWorkers[0]?.count || 0,
+    temporaryBlocks: temporaryBlocks[0]?.count || 0,
+    permanentBlocks: permanentBlocks[0]?.count || 0,
+    complianceRate: totalWorkers[0]?.count 
+      ? ((totalWorkers[0].count - (blockedWorkers[0]?.count || 0)) / totalWorkers[0].count * 100).toFixed(1)
+      : "100.0"
+  };
 }

@@ -18,6 +18,7 @@ import WorkerDetails from "./pages/WorkerDetails";
 import LeaderDashboard from "./pages/LeaderDashboard";
 import OperationAccept from "./pages/OperationAccept";
 import OperationDetails from "./pages/OperationDetails";
+import ComplianceManagement from "./pages/ComplianceManagement";
 import Shifts from "./pages/Shifts";
 
 function Router() {
@@ -38,6 +39,7 @@ function Router() {
         <Route path="/lider/dashboard" component={LeaderDashboard} />
         <Route path="/operacao/aceitar/:memberId" component={OperationAccept} />
         <Route path="/lider/operacao/:id" component={OperationDetails} />
+        <Route path="/conformidade" component={ComplianceManagement} />
       <Route path={"/home"} component={Home} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}

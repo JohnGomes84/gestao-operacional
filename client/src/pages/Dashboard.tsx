@@ -269,6 +269,17 @@ export default function Dashboard() {
                 </CardHeader>
               </Link>
             </Card>
+
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer bg-purple-50 border-purple-200">
+              <Link href="/conformidade">
+                <CardHeader>
+                  <CardTitle className="text-base">🛡️ Controle de Conformidade</CardTitle>
+                  <CardDescription>
+                    Gestão de bloqueios e conformidade trabalhista
+                  </CardDescription>
+                </CardHeader>
+              </Link>
+            </Card>
           </div>
         </section>
       </main>

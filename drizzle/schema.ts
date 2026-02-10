@@ -74,6 +74,14 @@ export const workers = mysqlTable("workers", {
   // Status operacional
   status: mysqlEnum("status", ["active", "inactive", "blocked"]).default("inactive").notNull(),
   
+  // Controle de bloqueio
+  isBlocked: boolean("isBlocked").default(false).notNull(),
+  blockReason: text("blockReason"),
+  blockedAt: timestamp("blockedAt"),
+  blockedBy: int("blockedBy").references(() => users.id),
+  blockType: mysqlEnum("blockType", ["temporary", "permanent"]),
+  blockExpiresAt: timestamp("blockExpiresAt"),
+  
   // Controle de risco trabalhista
   riskScore: int("riskScore").default(0), // 0-100
   riskLevel: mysqlEnum("riskLevel", ["low", "medium", "high", "critical"]).default("low"),
@@ -684,3 +692,29 @@ export const operationIncidents = mysqlTable("operationIncidents", {
 
 export type OperationIncident = typeof operationIncidents.$inferSelect;
 export type InsertOperationIncident = typeof operationIncidents.$inferInsert;
+
+// ============================================================================
+// HISTÓRICO DE BLOQUEIOS DE TRABALHADORES
+// ============================================================================
+
+export const workerBlockHistory = mysqlTable("workerBlockHistory", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  // Relacionamentos
+  workerId: int("workerId").references(() => workers.id).notNull(),
+  actionBy: int("actionBy").references(() => users.id).notNull(), // Admin que executou a ação
+  
+  // Ação
+  action: mysqlEnum("action", ["blocked", "unblocked"]).notNull(),
+  
+  // Detalhes do bloqueio/desbloqueio
+  reason: text("reason").notNull(),
+  blockType: mysqlEnum("blockType", ["temporary", "permanent"]),
+  expiresAt: timestamp("expiresAt"), // Para bloqueios temporários
+  
+  // Metadados
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type WorkerBlockHistory = typeof workerBlockHistory.$inferSelect;
+export type InsertWorkerBlockHistory = typeof workerBlockHistory.$inferInsert;
