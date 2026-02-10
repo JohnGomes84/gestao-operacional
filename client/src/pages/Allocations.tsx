@@ -129,9 +129,9 @@ export default function Allocations() {
           <div className="flex items-center justify-between">
             <div>
               <Link href="/">
-                <a className="text-2xl font-bold text-slate-900 hover:text-slate-700">
+                <span className="text-2xl font-bold text-slate-900 hover:text-slate-700 cursor-pointer">
                   ML Serviços
-                </a>
+                </span>
               </Link>
               <p className="text-sm text-slate-600">Gerenciar Alocações</p>
             </div>

@@ -344,3 +344,9 @@
 - [ ] Sistema de tokens/links de cadastro por empresa
 - [ ] Notificação ao admin quando novo cadastro é recebido
 - [ ] Histórico de aprovações/rejeições
+
+
+## BUG FIX - Erro de Anchor Aninhado na Página de Alocações
+- [x] Localizar anchor tag aninhado em /alocacoes (linha 131-135)
+- [x] Remover aninhamento inválido de <a> dentro de <a> (substituído por <span>)
+- [x] Testar correção no navegador
